@@ -1,5 +1,8 @@
 # Runtime scratch state — never commit
 .context/tmp/
+
+# Generated console startup brief — source truth is .console/*.md
+.console/.context
 .context/active/*.lock
 .context/leases/*.live
 .context/leases/*.pid
