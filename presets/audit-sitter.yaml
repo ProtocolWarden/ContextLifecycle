@@ -1,0 +1,43 @@
+# Preset: Audit Sitter
+# For repos with automated audit loops that investigate gate/check failures.
+# Copy to .context/config.yaml and fill in repo name and paths.
+
+clp_version: "0.1"
+repo: ""  # fill in
+
+guard:
+  require_capsule: false
+  enforce_lease: true
+  capsule_path: ".context/active/"
+  checkpoint_path: ".context/checkpoints/"
+  handoff_path: ".context/handoffs/"
+
+loop:
+  relaunch_command: "python scripts/audit_sitter.py"
+  max_cycle_minutes: 60
+  checkpoint_on_stop: true
+
+workers:
+  - id: "gate-investigation-worker"
+    task: "investigate failing gate and emit structured findings"
+    max_minutes: 30
+    max_tool_calls: 75
+    allowed_paths: [".context/", ".console/", "src/", "tests/"]
+    forbidden_paths: [".console/tmp/", ".context/tmp/"]
+    allowed_subagents: 1
+    mutation_policy: "write_allowed"
+
+  - id: "remediation-worker"
+    task: "apply deterministic fix for confirmed gate failure"
+    max_minutes: 20
+    max_tool_calls: 50
+    allowed_paths: [".context/", ".console/", "src/"]
+    forbidden_paths: [".console/tmp/", ".context/tmp/"]
+    allowed_subagents: 0
+    mutation_policy: "write_allowed"
+
+watchers:
+  - id: "gate-watcher"
+    watch_path: ".console/"
+    trigger_on: "gate_failure"
+    dispatch_worker: "gate-investigation-worker"

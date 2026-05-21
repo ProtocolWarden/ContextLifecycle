@@ -1,0 +1,34 @@
+# Preset: Watchdog Loop
+# For repos with operational watchdog loops that monitor invariants.
+# Copy to .context/config.yaml and fill in repo name and paths.
+
+clp_version: "0.1"
+repo: ""  # fill in
+
+guard:
+  require_capsule: false
+  enforce_lease: true
+  capsule_path: ".context/active/"
+  checkpoint_path: ".context/checkpoints/"
+  handoff_path: ".context/handoffs/"
+
+loop:
+  relaunch_command: ""  # fill in
+  max_cycle_minutes: 60
+  checkpoint_on_stop: true
+
+workers:
+  - id: "investigation-worker"
+    task: "bounded investigation of a failing invariant or blocker"
+    max_minutes: 30
+    max_tool_calls: 75
+    allowed_paths: [".context/", ".console/", "src/", "tests/"]
+    forbidden_paths: [".console/tmp/", ".context/tmp/"]
+    allowed_subagents: 1
+    mutation_policy: "write_allowed"
+
+watchers:
+  - id: "invariant-watcher"
+    watch_path: ".console/"
+    trigger_on: "failure"
+    dispatch_worker: "investigation-worker"

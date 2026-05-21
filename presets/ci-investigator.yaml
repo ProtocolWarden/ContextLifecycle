@@ -1,0 +1,33 @@
+# Preset: CI Investigator
+# For repos that want bounded investigation workers on CI failures.
+# Copy to .context/config.yaml and fill in repo name.
+
+clp_version: "0.1"
+repo: ""  # fill in
+
+guard:
+  require_capsule: false
+  enforce_lease: true
+  capsule_path: ".context/active/"
+  checkpoint_path: ".context/checkpoints/"
+  handoff_path: ".context/handoffs/"
+
+loop:
+  max_cycle_minutes: 30
+  checkpoint_on_stop: true
+
+workers:
+  - id: "ci-failure-investigator"
+    task: "investigate CI failure and emit remediation capsule"
+    max_minutes: 20
+    max_tool_calls: 50
+    allowed_paths: [".context/", "ci/", "scripts/", "src/", "tests/"]
+    forbidden_paths: [".context/tmp/"]
+    allowed_subagents: 0
+    mutation_policy: "read_only"  # investigation only — no mutations
+
+watchers:
+  - id: "ci-watcher"
+    watch_path: "ci/results/"
+    trigger_on: "failure"
+    dispatch_worker: "ci-failure-investigator"

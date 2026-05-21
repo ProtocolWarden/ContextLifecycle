@@ -119,6 +119,29 @@ Current adapters: **Claude Code** (`adapters/claude/`)
 
 ---
 
+## Presets
+
+Ready-to-use configs for common patterns:
+
+| Preset | Use case |
+|--------|----------|
+| [presets/audit-sitter.yaml](presets/audit-sitter.yaml) | Automated audit loops with gate failure investigation |
+| [presets/watchdog-loop.yaml](presets/watchdog-loop.yaml) | Operational watchdog loops monitoring invariants |
+| [presets/ci-investigator.yaml](presets/ci-investigator.yaml) | CI failure investigation workers |
+
+---
+
+## Docs
+
+- [docs/adopting.md](docs/adopting.md) — How to adopt CLP in your repo
+- [docs/context_guard.md](docs/context_guard.md) — ContextGuard design and adapter contract
+- [docs/adapters/adapter_contract.md](docs/adapters/adapter_contract.md) — Full adapter interface spec
+- [docs/adapters/claude_code_adapter.md](docs/adapters/claude_code_adapter.md) — Claude Code adapter behavior
+- [docs/philosophy.md](docs/philosophy.md) — Design philosophy
+- [docs/ecosystem.md](docs/ecosystem.md) — Real-world consumers and future primitives
+
+---
+
 ## Real-world Consumers
 
 - [OperationsCenter](https://github.com/ProtocolWarden/OperationsCenter) — watchdog loop integration
