@@ -1,0 +1,33 @@
+# .context/config.yaml — ContextLifecycleProtocol runtime config
+# Copy to your repo's .context/config.yaml and configure.
+
+clp_version: "0.1"
+repo: ""                    # (required) repo name, used in capsule metadata
+
+guard:
+  require_capsule: false    # if true, ContextGuard blocks tool calls with no active capsule
+  enforce_lease: true       # if true, ContextGuard blocks actions after lease expires
+  capsule_path: ".context/active/"
+  checkpoint_path: ".context/checkpoints/"
+  handoff_path: ".context/handoffs/"
+
+loop:
+  relaunch_command: ""      # how to restart this loop
+  max_cycle_minutes: 60     # how long a single orchestrator cycle may run
+  checkpoint_on_stop: true  # require checkpoint before loop terminates
+
+workers: []
+# workers:
+#   - id: "audit-worker"
+#     task: "investigate failing gate"
+#     max_minutes: 30
+#     max_tool_calls: 50
+#     allowed_paths: [".context/", ".console/"]
+#     forbidden_paths: [".console/tmp/"]
+
+watchers: []
+# watchers:
+#   - id: "gate-watcher"
+#     watch_path: ".console/gates/"
+#     trigger_on: "failure"
+#     dispatch_worker: "audit-worker"

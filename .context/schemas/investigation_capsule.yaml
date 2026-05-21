@@ -1,0 +1,69 @@
+# InvestigationCapsule schema
+# schema_version: "0.1"
+#
+# The core resumable cognition primitive.
+# Represents a bounded investigation that can be suspended, handed off,
+# and resumed without reloading full conversation history.
+#
+# Workers load this capsule on boot, perform bounded investigation,
+# update the fields, and terminate. The capsule survives the worker.
+
+# --- Identity envelope (required on all durable artifacts) ---
+
+capsule_id: ""              # UUID or slug — unique across the repo
+schema_version: "0.1"       # bump on breaking field changes
+created_at: ""              # ISO 8601
+updated_at: ""              # ISO 8601, updated each time the capsule is written
+created_by: ""              # worker id, agent id, or human operator
+parent_capsule_id: ""       # id of the capsule this supersedes or forked from (empty if root)
+related_checkpoint_id: ""   # id of the LoopCheckpoint that owns this investigation
+status: ""                  # active | blocked | resolved | archived | superseded | abandoned
+
+# --- Investigation state ---
+
+current_blocker: ""         # one-line description of the primary blocker right now
+current_phase: ""           # e.g. "initial triage", "remediation", "verification"
+
+failing_invariant: ""       # the gate, watcher, or invariant that triggered this investigation
+                            # be specific: "VideoFoundry gate: transcode_quality_gate failed
+                            #              on job abc123, threshold 0.85, actual 0.61"
+
+active_hypotheses: []       # list of working hypotheses, most likely first
+                            # e.g. ["codec mismatch in ffmpeg call", "input file corrupt"]
+
+evidence_paths: []          # list of file paths or artifact refs relevant to this investigation
+                            # e.g. [".console/audits/2026-05-21/run-abc123.json",
+                            #       ".context/capsules/prior-transcode-failure.yaml"]
+
+recent_failures: []         # structured list of recent failure events
+                            # each entry: {timestamp, description, artifact_path}
+
+attempted_remediations: []  # list of remediations already tried and their outcomes
+                            # each entry: {action, outcome, timestamp}
+
+next_actions: []            # ordered list of next actions the next worker should take
+                            # be specific enough that a cold worker can act without context
+
+# --- Safety constraints ---
+
+safety_constraints: []      # hard constraints on what this investigation may do
+                            # e.g. ["do not delete any run artifacts",
+                            #       "do not restart the transcode pipeline directly"]
+
+known_safe_boundaries: []   # operations confirmed safe to retry or repeat
+                            # e.g. ["re-reading .console/audits/ is safe",
+                            #       "re-running validation scripts is safe"]
+
+# --- Exclusions (critical: define what NOT to do) ---
+
+exclusions:
+  reload_forbidden: []      # context/artifacts that must NOT be reloaded by the next worker
+                            # e.g. ["full audit history before 2026-05-01",
+                            #       ".context/archive/ — stale, superseded by current capsule"]
+  retry_forbidden: []       # actions that must NOT be retried
+                            # e.g. ["manual ffmpeg parameter override — caused data loss on run xyz"]
+
+# --- Worker handoff notes ---
+
+handoff_notes: ""           # free-text notes for the next worker
+                            # what is the most important thing they need to know?

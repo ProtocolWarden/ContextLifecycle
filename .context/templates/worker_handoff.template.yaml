@@ -1,0 +1,34 @@
+# WorkerHandoff template
+# Created by the orchestrator before spawning a worker.
+# The worker loads this on boot. Fill all required fields before dispatch.
+
+handoff_id: ""              # (required) e.g. "handoff-$(date +%Y%m%d-%H%M)-<slug>"
+schema_version: "0.1"
+created_at: ""              # (required) ISO 8601
+source_checkpoint_id: ""    # (required)
+source_capsule_id: ""       # (required)
+target_worker_id: ""        # (required) assign before spawning
+
+task_description: ""        # (required) one sentence
+
+input_capsule_id: ""        # (required) must match source_capsule_id
+input_artifacts: []
+expected_output: ""         # (required)
+completion_criteria: ""     # (required)
+validation_command: ""
+escalation_condition: ""
+
+worker_scope:
+  repo: ""                  # (required)
+  allowed_paths: []         # (required) be explicit
+  forbidden_paths: []
+  allowed_tools: []
+  allowed_subagents: 0
+  mutation_policy: "write_allowed"
+
+lease:
+  max_minutes: 30
+  max_tool_calls: 50
+  max_subagents: 0
+  expires_at: ""            # (required) set to created_at + max_minutes
+  escalation_required_after: ""

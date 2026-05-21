@@ -1,0 +1,44 @@
+# InvestigationCapsule template
+# Copy to .context/active/<slug>.yaml and fill in required fields.
+# Required fields marked with (required).
+
+capsule_id: ""              # (required) e.g. "inv-$(date +%Y%m%d)-<short-slug>"
+schema_version: "0.1"
+created_at: ""              # (required) ISO 8601 — fill on creation
+updated_at: ""              # (required) ISO 8601 — update every time you write this file
+created_by: ""              # (required) worker-id, agent name, or "human"
+parent_capsule_id: ""       # leave empty if this is a new investigation
+related_checkpoint_id: ""   # (required) id of the LoopCheckpoint that owns this
+status: "active"            # active | blocked | resolved | archived | superseded | abandoned
+
+current_blocker: ""         # (required) one line
+current_phase: "initial triage"
+failing_invariant: ""       # (required) be specific
+
+active_hypotheses:
+  - ""
+
+evidence_paths:
+  - ""
+
+recent_failures:
+  - timestamp: ""
+    description: ""
+    artifact_path: ""
+
+attempted_remediations: []
+
+next_actions:
+  - ""
+
+safety_constraints:
+  - ""
+
+known_safe_boundaries:
+  - ""
+
+exclusions:
+  reload_forbidden: []
+  retry_forbidden: []
+
+handoff_notes: ""

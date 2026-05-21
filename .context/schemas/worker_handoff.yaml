@@ -1,0 +1,55 @@
+# WorkerHandoff schema
+# schema_version: "0.1"
+#
+# Defines a clean worker dispatch without dumping full conversation history.
+# The orchestrator creates this before spawning a worker.
+# The worker loads this on boot: it defines everything the worker is allowed to do,
+# what it should produce, and when it should stop or escalate.
+#
+# Workers MUST NOT persist beyond the bounds defined here.
+
+# --- Identity envelope ---
+
+handoff_id: ""              # UUID or slug
+schema_version: "0.1"
+created_at: ""              # ISO 8601
+source_checkpoint_id: ""    # checkpoint that authorized this handoff
+source_capsule_id: ""       # capsule the worker is investigating
+target_worker_id: ""        # id assigned to the worker being spawned
+
+# --- Task definition ---
+
+task_description: ""        # one clear sentence: what should this worker accomplish?
+
+input_capsule_id: ""        # capsule to load on boot (must match source_capsule_id)
+input_artifacts: []         # specific file paths or refs the worker may read
+                            # if empty, worker may only read allowed_paths
+
+expected_output: ""         # what the worker must produce before terminating
+                            # e.g. "updated InvestigationCapsule with findings and next_actions"
+
+completion_criteria: ""     # how to know the task is done
+                            # e.g. "capsule status set to resolved or blocked"
+
+validation_command: ""      # shell command to validate output (exit 0 = valid)
+                            # e.g. "python scripts/validate_capsule.py .context/active/current.yaml"
+
+escalation_condition: ""    # when to escalate instead of completing
+                            # e.g. "if remediation requires pipeline restart"
+
+# --- Worker scope and lease (combined until proven separate) ---
+
+worker_scope:
+  repo: ""                  # repo root path the worker operates in
+  allowed_paths: []         # paths the worker may read or write
+  forbidden_paths: []       # paths the worker must never touch
+  allowed_tools: []         # tool names permitted (empty = all permitted)
+  allowed_subagents: 0      # max subagents the worker may spawn (0 = none)
+  mutation_policy: ""       # read_only | write_allowed | destructive_allowed
+
+lease:
+  max_minutes: 0            # wall-clock budget (0 = no limit, not recommended)
+  max_tool_calls: 0         # tool call budget (0 = no limit, not recommended)
+  max_subagents: 0          # subagent spawn budget
+  expires_at: ""            # ISO 8601 hard deadline
+  escalation_required_after: "" # if this threshold is hit, escalate before continuing

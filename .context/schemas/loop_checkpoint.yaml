@@ -1,0 +1,64 @@
+# LoopCheckpoint schema
+# schema_version: "0.1"
+#
+# The core loop continuity primitive.
+# Represents the state of an orchestrator loop at a specific cycle boundary.
+# The orchestrator reads this on wake, acts, writes an updated checkpoint, then terminates or compacts.
+# The loop survives without a persistent conversation.
+#
+# Orchestrator lifecycle:
+#   wake → read checkpoint → read capsule refs → classify → dispatch worker if needed
+#   → write updated checkpoint → write operator summary → terminate or compact
+
+# --- Identity envelope ---
+
+checkpoint_id: ""           # UUID or slug — unique per cycle
+schema_version: "0.1"
+created_at: ""              # ISO 8601
+updated_at: ""              # ISO 8601
+parent_checkpoint_id: ""    # id of the previous checkpoint in this loop chain
+active_capsule_ids: []      # ids of all currently active InvestigationCapsules
+orchestrator_cycle_id: ""   # monotonic cycle counter or slug for this loop run
+
+# --- Loop state ---
+
+last_completed_cycle: ""    # timestamp or cycle id of the last completed iteration
+current_phase: ""           # e.g. "monitoring", "investigating", "remediating", "sleeping"
+current_operational_state: "" # one-line human-readable summary of what is happening right now
+
+latest_worker_outputs: []   # list of outputs from the most recent worker dispatches
+                            # each entry: {worker_id, capsule_id, summary, artifact_path, timestamp}
+
+unresolved_blockers: []     # list of blockers that have not been resolved
+                            # each entry: {blocker_id, description, capsule_id, since}
+
+next_scheduled_action: ""   # what the loop should do next on wake
+next_wakeup_reason: ""      # why the loop is sleeping / what event should trigger next wake
+
+relaunch_metadata:
+  relaunch_command: ""      # command or entrypoint to restart this loop
+  relaunch_args: []
+  environment: {}           # key env vars needed on relaunch (non-sensitive only)
+
+compaction_status: ""       # compacted | pending | not_required
+
+# --- Orchestrator self-compaction state ---
+
+orchestrator:
+  last_compacted_at: ""     # when the orchestrator last compacted its own context
+  current_cycle_id: ""      # same as orchestrator_cycle_id above
+  active_worker_ids: []     # ids of workers currently dispatched
+  active_capsule_ids: []    # same as top-level active_capsule_ids
+  next_allowed_action: ""   # constrained next action (used by ContextGuard)
+
+  context_risk:
+    long_lived_session: false     # session has been running long — force compaction
+    high_parallelism: false       # many workers active — deny additional spawning
+    subagent_heavy: false         # heavy subagent use — reduce subagent budget
+    checkpoint_stale: false       # checkpoint is old — refresh before next dispatch
+    reload_scope_too_large: false # reload scope is too broad — prune before reload
+
+# --- Operator summary ---
+
+operator_summary: ""        # human-readable summary of this cycle's outcome
+                            # written by the orchestrator before sleep/termination
