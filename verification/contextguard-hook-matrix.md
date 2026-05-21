@@ -2,9 +2,16 @@
 
 **Hook:** `adapters/claude/hooks/pre_tool_use.sh`  
 **Date:** 2026-05-21  
-**Commit:** `fix(hooks): enforce allowed_paths whitelist, context_risk flags, session-aware stop`
+**Commits:** `fix(hooks): enforce allowed_paths whitelist, context_risk flags, session-aware stop` + `fix(hooks): add python3 fallback for jq`  
+**Test harness:** `adapters/claude/hooks/tests/run_hook_tests.sh`
 
-Each row: fixture input → expected output → exit code → enforcement status.
+**Actual test run output (2026-05-21T08:49:00Z):**
+```
+Results: 22 passed, 0 failed
+ALL PASS
+```
+
+Each row: fixture input → expected output → actual output → exit code → enforcement status.
 
 ---
 

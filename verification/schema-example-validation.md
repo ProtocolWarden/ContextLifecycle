@@ -1,7 +1,15 @@
 # Phase B — Schema Example Validation
 
 **Date:** 2026-05-21  
-**Purpose:** Confirm all schema examples are parseable, contain required fields, and match their schema contracts.
+**Validator:** `adapters/claude/hooks/tests/validate_examples.py`
+
+**Actual run output (2026-05-21):**
+```
+Results: 9 passed, 0 failed
+ALL PASS
+```
+
+Covers: capsule example, capsule template, checkpoint example, checkpoint template, handoff template, config template, watchdog-loop preset, audit-sitter preset, ci-investigator preset.
 
 ---
 

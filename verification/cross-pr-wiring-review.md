@@ -10,9 +10,10 @@ Reviews that the hook fix PRs are correctly linked and that files are consistent
 
 | PR | Repo | Title | Branch |
 |----|------|-------|--------|
-| #5 | ContextLifecycleProtocol | fix(hooks): enforce allowed_paths, context_risk flags, session-aware stop | feat/contextguard-hook-fixes |
+| #5 | ContextLifecycleProtocol | fix(hooks): enforce allowed_paths, context_risk flags, session-aware stop + jq fallback + test harness | feat/contextguard-hook-fixes |
 | #157 | OperationsCenter | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
 | #899 | VideoFoundry | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
+| #30 | PlatformManifest | feat(manifest): add context_lifecycle participation metadata | feat/clp-participation-metadata |
 
 ---
 
@@ -83,4 +84,31 @@ VF push succeeded without Custodian boundary violations.
 
 ---
 
-## Status: PASS — PRs wired correctly; no sync gaps; no boundary violations.
+---
+
+## G-08: Workspace `.context/` created
+
+`~/Documents/GitHub/.context/` created with:
+- `active/`, `checkpoints/`, `capsules/`, `handoffs/`, `tmp/` directories
+- `.gitignore` preventing accidental staging (`* !.gitignore !README.md`)
+- `README.md` explaining intent, constraints, and ownership model
+
+Local-only. Not git-initialized. No tracked file in any repo references this path.
+
+---
+
+## G-09: PlatformManifest participation metadata
+
+PM #30 adds `context_lifecycle` metadata to `operations_center` and `context_lifecycle_protocol` nodes.  
+PlatformManifest describes capability/participation only — not live state, capsules, or checkpoints.  
+Custodian: 0 findings on push.
+
+---
+
+## G-10: Hook portability
+
+`jq` fallback added in CLP #5 (latest commit). Pre-push test run confirms all 22 hook cases pass without `jq`. Hook uses `python3` JSON parsing as fallback.
+
+---
+
+## Status: PASS — PRs wired correctly; no sync gaps; no boundary violations; workspace surface created.

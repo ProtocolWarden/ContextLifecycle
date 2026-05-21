@@ -115,4 +115,26 @@ Key sections:
 
 ---
 
+---
+
+## 8. Portability Fix Applied
+
+**Finding:** `pre_tool_use.sh` used `jq` for JSON parsing but `jq` is not installed on all developer systems. The hook would fail with a non-zero error exit (not a clean block) when `jq` was absent, defeating enforcement.
+
+**Fix:** Added `python3` fallback for all `jq` calls. Hook now prefers `jq` when available, falls back to `python3 -c "import json..."` otherwise. `python3` + `pyyaml` are already required for YAML parsing in the same hook.
+
+**Commit:** `fix(hooks): add python3 fallback for jq; add hook test harness`
+
+---
+
+## 9. Test Harness
+
+`adapters/claude/hooks/tests/run_hook_tests.sh` — 22 fixture test cases covering all enforcement paths.  
+`adapters/claude/hooks/tests/validate_examples.py` — schema/example validation for all YAML artifacts.
+
+Run: `bash adapters/claude/hooks/tests/run_hook_tests.sh`  
+Run: `python3 adapters/claude/hooks/tests/validate_examples.py`
+
+---
+
 ## Status: PASS
