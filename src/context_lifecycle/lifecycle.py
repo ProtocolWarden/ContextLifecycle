@@ -127,16 +127,15 @@ def _extract_repos(result: dict[str, Any]) -> list[str]:
 
     Looked-at keys (any may be missing):
       - ``repo`` / ``repo_name`` / ``repo_key`` — top-level scalar
-      - ``repos`` — list of repo names
+      - ``repos`` / ``repos_touched`` / ``targets`` / ``target_repos`` — list of repo names
       - ``worker_scope.repo`` — handoff shape
-      - ``targets`` / ``target_repos`` — list of repo names
     """
     repos: list[str] = []
     for key in ("repo", "repo_name", "repo_key"):
         val = result.get(key)
         if isinstance(val, str) and val:
             repos.append(val)
-    for key in ("repos", "targets", "target_repos"):
+    for key in ("repos", "repos_touched", "targets", "target_repos"):
         val = result.get(key)
         if isinstance(val, list):
             repos.extend(str(v) for v in val if isinstance(v, str))

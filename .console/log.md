@@ -1,4 +1,12 @@
 # Log
+## 2026-05-22 — fix: recognize `repos_touched` in capture boundary check
+
+E2E anchor flow test caught: `capture(result={"repos_touched": [...]})` was silently skipping RepoGraph authorization because `_extract_repos` only recognized `repos`, `targets`, `target_repos`. The cross-boundary write (PM-anchored session → private-owned repo) wrote successfully when it should have been blocked.
+
+Added `repos_touched` to the recognized list. All 90 tests still pass; e2e verified that `repos_touched: ["VideoFoundry"]` from a PM anchor now raises BoundaryViolation.
+
+Follow-up not addressed here: `RepoGraph.can_anchor_host` matches on canonical_name (`VideoFoundry`) and rejects the snake_case repo key (`videofoundry`) as "unregistered". Both forms should be acceptable for UX. Filed for a separate change in RepoGraph.
+
 ## 2026-05-22 — Pin repograph to git tag v0.2.0 (was file:// local pin)
 
 Follow-up to ADR 0002 P2/P4 release. Switched `repograph` dependency from a local file:// pin (dev-only) to `git+https://github.com/ProtocolWarden/RepoGraph.git@v0.2.0`. Reproducible across machines and CI. Local editable installs (`pip install -e ../RepoGraph`) still override the pin for active development.
