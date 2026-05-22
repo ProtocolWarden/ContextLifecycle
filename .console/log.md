@@ -1,5 +1,25 @@
 # Log
 
+## 2026-05-22 — P1 CLI bootstrap + bash hook port to Python (feat/p1-cli-bootstrap)
+
+Implemented Phase 1 of the manifest-cognition work order (ADR 0002). Ported `pre_tool_use.sh` (330 lines bash) and `stop.sh` (116 lines bash) to a Python `cl` CLI shipped from CL's own `.venv/`. Bash hooks under `adapters/claude/hooks/` left untouched as the transition fallback.
+
+**Surface delivered:**
+- `bin/cl` — stable wrapper script (P0.3 contract); resolves `.venv/bin/cl`, falls back to PATH.
+- `cl session start [MANIFEST] [--json|--shell|--require-clean]` with locked exit codes (0/1/2/3/4 per P0.2). No-arg invocation hard-errors with "Phase 2" guidance (RepoGraph inference deferred).
+- `cl session show` / `cl session end [--archive]` for env lifecycle and per-session subdir archival.
+- `cl hook pre_tool_use` / `cl hook stop` — read JSON from stdin, exit 0/2 per Claude Code hook contract, emit `{"decision":"block","reason":...}` JSON on block.
+
+**Architecture:**
+- Pydantic v2 models (`models/`) mirror the YAML schemas field-for-field; `extra="allow"` so unknown fields don't break loads. `WorkerHandoff.is_lease_expired()` accepts both `lease.expires_at` and the bash-era top-level `expires_at`.
+- `hooks/pre_tool_use.py` is a pure decision function over loaded state, returning `DecisionResult(decision, reason, warnings)`. CLI layer maps to exit codes + JSON.
+- Per-session subdir layout (`<anchor>/.context/sessions/<sid>/{active,checkpoints,handoffs}/`) implemented in `session/paths.py` per P0.5.
+- Hard error on missing `CL_ANCHOR` (P0.6); same for `CL_SESSION_ID`. No fallback.
+
+**Test parity:** 69 pytest tests covering every block/warn branch of the bash decision tree (require_capsule, lease expiry, forbidden/allowed paths, mutation_policy, max_subagents, high_parallelism, subagent_heavy, checkpoint_stale, long_lived_session, reload_scope_too_large), plus model round-trips, session id/anchor/paths, CLI session + hook commands. All green.
+
+**Stop point:** changes staged (not committed). Parent reviews + commits. P2 (RepoGraph registry + `can_anchor_host` + `find_anchor_for_path`) is the next gate; once that lands, `cl session start` no-arg inference and the manifest-name lookup activate.
+
 ## 2026-05-22 — Manifest concept + CL/Manifest/RepoGraph contract split (design session)
 
 Walked the architecture for how CL should integrate with executors and where cognition state actually lives. Result: a new repo-type vocabulary and a clean three-way contract split.

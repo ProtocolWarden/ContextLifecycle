@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Stable entrypoint for ContextLifecycle CLI.
+# Consumer shims reference this path via $CL_HOME/bin/cl and never touch
+# CL's internal venv layout. If CL ever restructures internals, only this
+# wrapper updates.
+set -euo pipefail
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CL_REPO="$(cd "${SELF_DIR}/.." && pwd)"
+VENV_CL="${CL_REPO}/.venv/bin/cl"
+if [[ -x "${VENV_CL}" ]]; then
+  exec "${VENV_CL}" "$@"
+fi
+# Fallback: try `cl` on PATH (e.g. pipx install).
+if command -v cl >/dev/null 2>&1; then
+  exec cl "$@"
+fi
+echo "ContextLifecycle: no cl binary found." >&2
+echo "  Tried: ${VENV_CL}" >&2
+echo "  Tried: cl on PATH" >&2
+echo "  Install with: cd ${CL_REPO} && python3 -m venv .venv && .venv/bin/pip install -e ." >&2
+exit 1
