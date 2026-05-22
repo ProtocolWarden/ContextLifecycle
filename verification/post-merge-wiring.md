@@ -11,8 +11,8 @@ After merge to main, confirm hooks exist at expected paths:
 
 | Repo | Path | Expected |
 |------|------|----------|
-| ContextLifecycleProtocol | `adapters/claude/hooks/pre_tool_use.sh` | exists, executable |
-| ContextLifecycleProtocol | `adapters/claude/hooks/stop.sh` | exists, executable |
+| ContextLifecycle | `adapters/claude/hooks/pre_tool_use.sh` | exists, executable |
+| ContextLifecycle | `adapters/claude/hooks/stop.sh` | exists, executable |
 | OperationsCenter | `.claude/hooks/pre_tool_use.sh` | exists, executable |
 | OperationsCenter | `.claude/hooks/stop.sh` | exists, executable |
 | VideoFoundry | `.claude/hooks/pre_tool_use.sh` | exists, executable |

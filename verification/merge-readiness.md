@@ -4,7 +4,7 @@
 
 ---
 
-## Checklist: ContextLifecycleProtocol PR #5
+## Checklist: ContextLifecycle PR #5
 
 - [x] Hook fixes committed on `feat/contextguard-hook-fixes`
 - [x] Verification documents written: A (CLP), A (OC), A (VF), B, C, D, E, F, G, H, I

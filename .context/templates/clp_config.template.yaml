@@ -1,4 +1,4 @@
-# .context/config.yaml — ContextLifecycleProtocol runtime config
+# .context/config.yaml — ContextLifecycle runtime config
 # Copy to your repo's .context/config.yaml and configure.
 
 clp_version: "0.1"

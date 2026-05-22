@@ -25,7 +25,7 @@ This is not a model problem. It is an architecture problem.
 
 ## The boundary model
 
-ContextLifecycleProtocol formalizes the same discipline applied elsewhere in the platform:
+ContextLifecycle formalizes the same discipline applied elsewhere in the platform:
 
 | System | What it enforces |
 |--------|-----------------|
@@ -33,7 +33,7 @@ ContextLifecycleProtocol formalizes the same discipline applied elsewhere in the
 | OperationsCenter | Execution boundaries |
 | RepoGraph | Visibility/projection boundaries |
 | SwitchBoard | Routing boundaries |
-| **ContextLifecycleProtocol** | **Cognition lifecycle boundaries** |
+| **ContextLifecycle** | **Cognition lifecycle boundaries** |
 
 Boundaries without enforcement become documentation. ContextGuard is the enforcement.
 
@@ -111,6 +111,6 @@ The vocabulary is not the system. The enforcement is the system.
 
 Andrew Patterson's [agent convention enforcement system](https://andrewpatterson.dev/posts/agent-convention-enforcement-system/) solves **convention drift** — agents that drift from documented conventions because conventions aren't enforced.
 
-ContextLifecycleProtocol extends the same philosophy toward **cognition drift** — agents that drift from bounded, efficient operation because cognitive lifecycle isn't enforced.
+ContextLifecycle extends the same philosophy toward **cognition drift** — agents that drift from bounded, efficient operation because cognitive lifecycle isn't enforced.
 
-The mechanism is the same: injectable context + enforcement hooks. The scope is different: ContextLifecycleProtocol governs the cognitive lifecycle itself, not just the conventions within it.
+The mechanism is the same: injectable context + enforcement hooks. The scope is different: ContextLifecycle governs the cognitive lifecycle itself, not just the conventions within it.

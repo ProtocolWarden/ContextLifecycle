@@ -1,6 +1,6 @@
 # Phase A — CLP Runtime Health Inventory
 
-**Repo:** ContextLifecycleProtocol  
+**Repo:** ContextLifecycle  
 **Date:** 2026-05-21  
 **Branch:** feat/contextguard-hook-fixes  
 **Purpose:** Confirm CLP is a working runtime, not just documentation.

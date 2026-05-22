@@ -1,4 +1,4 @@
-# Adopting ContextLifecycleProtocol
+# Adopting ContextLifecycle
 
 How to add bounded, resumable cognition lifecycle to any repo.
 
@@ -9,7 +9,7 @@ How to add bounded, resumable cognition lifecycle to any repo.
 ### 1. Copy `.context/`
 
 ```bash
-cp -r path/to/ContextLifecycleProtocol/.context/ /your/repo/.context/
+cp -r path/to/ContextLifecycle/.context/ /your/repo/.context/
 ```
 
 ### 2. Configure
@@ -33,7 +33,7 @@ Edit `.context/config.yaml` — set `repo:`, configure your workers and watchers
 
 ```bash
 mkdir -p .claude/hooks
-cp path/to/ContextLifecycleProtocol/adapters/claude/hooks/*.sh .claude/hooks/
+cp path/to/ContextLifecycle/adapters/claude/hooks/*.sh .claude/hooks/
 chmod +x .claude/hooks/*.sh
 ```
 
@@ -119,4 +119,4 @@ Start permissive, tighten over time:
 
 ## Getting help
 
-Open an issue: [github.com/ProtocolWarden/ContextLifecycleProtocol/issues](https://github.com/ProtocolWarden/ContextLifecycleProtocol/issues)
+Open an issue: [github.com/ProtocolWarden/ContextLifecycle/issues](https://github.com/ProtocolWarden/ContextLifecycle/issues)

@@ -1,6 +1,6 @@
 # Ecosystem Expansion
 
-ContextLifecycleProtocol is designed to grow. The core primitives (InvestigationCapsule, LoopCheckpoint, WorkerHandoff, ContextGuard) are stable. The ecosystem expands through additional adapters, worker templates, lifecycle policies, and deployment examples.
+ContextLifecycle is designed to grow. The core primitives (InvestigationCapsule, LoopCheckpoint, WorkerHandoff, ContextGuard) are stable. The ecosystem expands through additional adapters, worker templates, lifecycle policies, and deployment examples.
 
 ---
 

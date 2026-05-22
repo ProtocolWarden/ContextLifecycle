@@ -10,7 +10,7 @@ Reviews that the hook fix PRs are correctly linked and that files are consistent
 
 | PR | Repo | Title | Branch |
 |----|------|-------|--------|
-| #5 | ContextLifecycleProtocol | fix(hooks): enforce allowed_paths, context_risk flags, session-aware stop + jq fallback + test harness | feat/contextguard-hook-fixes |
+| #5 | ContextLifecycle | fix(hooks): enforce allowed_paths, context_risk flags, session-aware stop + jq fallback + test harness | feat/contextguard-hook-fixes |
 | #157 | OperationsCenter | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
 | #899 | VideoFoundry | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
 | #30 | PlatformManifest | feat(manifest): add context_lifecycle participation metadata | feat/clp-participation-metadata |
@@ -22,11 +22,11 @@ Reviews that the hook fix PRs are correctly linked and that files are consistent
 Both files should be byte-for-byte identical.
 
 ```bash
-diff ContextLifecycleProtocol/adapters/claude/hooks/pre_tool_use.sh \
+diff ContextLifecycle/adapters/claude/hooks/pre_tool_use.sh \
      OperationsCenter/.claude/hooks/pre_tool_use.sh
 # expected: no diff
 
-diff ContextLifecycleProtocol/adapters/claude/hooks/stop.sh \
+diff ContextLifecycle/adapters/claude/hooks/stop.sh \
      OperationsCenter/.claude/hooks/stop.sh
 # expected: no diff
 ```
@@ -67,7 +67,7 @@ File: `VideoFoundry/.claude/settings.json`
 |------|---------|-------------------|----------------------|
 | OperationsCenter | ✅ | ✅ Orchestrator lifecycle | ✅ wake/checkpoint/terminate |
 | VideoFoundry | ✅ | ✅ Audit sitter lifecycle | ✅ wake/checkpoint/terminate |
-| ContextLifecycleProtocol | ✅ | — (CLP is the protocol, not a user) | — |
+| ContextLifecycle | ✅ | — (CLP is the protocol, not a user) | — |
 
 ---
 

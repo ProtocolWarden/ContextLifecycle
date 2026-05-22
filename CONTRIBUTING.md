@@ -1,6 +1,6 @@
-# Contributing to ContextLifecycleProtocol
+# Contributing to ContextLifecycle
 
-ContextLifecycleProtocol is a generic cognition lifecycle runtime for bounded, resumable agent sessions. It defines schemas, enforcement semantics, and runtime adapters — not OC/VF-specific scaffolding.
+ContextLifecycle is a generic cognition lifecycle runtime for bounded, resumable agent sessions. It defines schemas, enforcement semantics, and runtime adapters — not OC/VF-specific scaffolding.
 
 ## Before You Start
 

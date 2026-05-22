@@ -1,8 +1,8 @@
-# ContextLifecycleProtocol — reference config
+# ContextLifecycle — reference config
 # This is the protocol definition repo, not a runtime consumer.
 # Config exists for hook testing only; not used operationally.
 clp_version: "0.1"
-repo: "ContextLifecycleProtocol"
+repo: "ContextLifecycle"
 
 guard:
   require_capsule: false

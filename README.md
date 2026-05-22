@@ -1,4 +1,4 @@
-# ContextLifecycleProtocol
+# ContextLifecycle
 
 A generic, configurable **cognition lifecycle runtime** for bounded, resumable agent sessions.
 
@@ -38,7 +38,7 @@ Context is infrastructure. Not merely prompt data.
 
 ## What This Is
 
-`ContextLifecycleProtocol` is a **generic configurable cognition lifecycle runtime** — not a schema dump or a spec-only repository.
+`ContextLifecycle` is a **generic configurable cognition lifecycle runtime** — not a schema dump or a spec-only repository.
 
 It provides:
 

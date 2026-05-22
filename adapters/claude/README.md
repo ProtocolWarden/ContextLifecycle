@@ -10,8 +10,8 @@ Claude Code hooks run shell scripts at lifecycle events. This adapter wires Cont
 
 ```bash
 # From your repo root
-cp -r path/to/ContextLifecycleProtocol/adapters/claude/hooks/ .claude/hooks/
-cp path/to/ContextLifecycleProtocol/adapters/claude/settings.json .claude/settings.json
+cp -r path/to/ContextLifecycle/adapters/claude/hooks/ .claude/hooks/
+cp path/to/ContextLifecycle/adapters/claude/settings.json .claude/settings.json
 ```
 
 Or merge `settings.json` into your existing `.claude/settings.json`.
