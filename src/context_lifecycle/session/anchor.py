@@ -1,7 +1,7 @@
 """CL_ANCHOR resolution + validation.
 
-Anchor inference (no MANIFEST arg) requires RepoGraph and lands in P2; the
-P1 CLI hard-errors when the positional arg is omitted.
+Anchor inference (no MANIFEST arg) and name-based lookup ("PlatformManifest")
+go through RepoGraph's per-machine manifest registry (ADR 0002 P2.4).
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from context_lifecycle.errors import (
+    AmbiguousAnchor,
     AnchorInvalid,
     AnchorMissing,
     AnchorPrerequisitesMissing,
@@ -43,31 +44,77 @@ def require_anchor_env() -> Path:
 def resolve_anchor_arg(manifest: str | None) -> Path:
     """Resolve a manifest name or path argument to an absolute Path.
 
-    For P1 we only support absolute or relative paths. Name-based lookup
-    (e.g. "PlatformManifest") is RepoGraph's job and lands in P2.
+    - ``manifest=None`` → ask RepoGraph to infer from cwd (P2.4).
+      ``AmbiguousAnchor`` on multiple matches; ``ManifestNotFound`` on none.
+    - Path-like argument (contains ``/`` or is absolute) → resolve as filesystem path.
+    - Bare name → look up in RepoGraph registry by manifest basename or
+      canonical name.
     """
     if manifest is None:
+        return _infer_anchor_via_repograph()
+
+    looks_like_path = "/" in manifest or manifest.startswith(".") or manifest.startswith("~")
+    if looks_like_path:
+        p = Path(manifest).expanduser()
+        if not p.is_absolute():
+            p = (Path.cwd() / p).resolve()
+        else:
+            p = p.resolve()
+        if not p.exists():
+            raise ManifestNotFound(f"manifest path does not exist: {manifest}")
+        if not p.is_dir():
+            raise ManifestNotFound(f"manifest path is not a directory: {p}")
+        return p
+
+    # Bare name → registry lookup.
+    return _resolve_name_via_repograph(manifest)
+
+
+def _load_repograph():
+    """Import RepoGraph lazily so tests can monkeypatch and so a missing dep
+    surfaces as a clean error rather than an import-time crash."""
+    try:
+        from repograph import RepoGraph  # type: ignore[import-not-found]
+    except ImportError as exc:
         raise ManifestNotFound(
-            "anchor inference not yet implemented (Phase 2). "
-            "Pass an explicit manifest path: `cl session start <path>`."
+            "RepoGraph is not installed. Install it (`pip install repograph` or "
+            "`pip install -e ../RepoGraph`) and register manifests via "
+            "`repograph manifest add <path>`."
+        ) from exc
+    return RepoGraph
+
+
+def _infer_anchor_via_repograph() -> Path:
+    RepoGraph = _load_repograph()
+    try:
+        from repograph.errors import AmbiguousAnchorError  # type: ignore[import-not-found]
+    except ImportError:  # pragma: no cover - older RepoGraph
+        AmbiguousAnchorError = Exception  # type: ignore[assignment]
+
+    try:
+        inferred = RepoGraph().find_anchor_for_path(Path.cwd())
+    except AmbiguousAnchorError as exc:
+        raise AmbiguousAnchor(str(exc)) from exc
+    if inferred is None:
+        raise ManifestNotFound(
+            "could not infer anchor manifest from cwd. "
+            "Pass an explicit `cl session start <manifest>` or register "
+            "the owning manifest via `repograph manifest add <path>`."
         )
-    p = Path(manifest).expanduser()
-    if not p.is_absolute():
-        # Try cwd-relative resolution.
-        p = (Path.cwd() / p).resolve()
-    else:
-        p = p.resolve()
-    if not p.exists():
-        # Name-based lookup is a P2 feature; for now surface a clear error.
-        if "/" not in manifest:
-            raise ManifestNotFound(
-                f"manifest '{manifest}' not found. Name-based lookup is a Phase 2 feature "
-                "(needs RepoGraph manifest registry). Pass an absolute path for now."
-            )
-        raise ManifestNotFound(f"manifest path does not exist: {manifest}")
-    if not p.is_dir():
-        raise ManifestNotFound(f"manifest path is not a directory: {p}")
-    return p
+    return Path(inferred).resolve()
+
+
+def _resolve_name_via_repograph(name: str) -> Path:
+    RepoGraph = _load_repograph()
+    view = RepoGraph().authorization()
+    record = view.get_by_name(name)
+    if record is None:
+        raise ManifestNotFound(
+            f"manifest {name!r} is not registered with RepoGraph. "
+            f"Known: {sorted(r.name for r in view.manifests.values())}. "
+            "Register it via `repograph manifest add <path>`."
+        )
+    return record.root
 
 
 def validate_anchor(

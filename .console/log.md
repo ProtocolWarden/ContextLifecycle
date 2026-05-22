@@ -1,5 +1,27 @@
 # Log
 
+## 2026-05-22 — P2: wire `cl session start` through RepoGraph
+
+Branch: `feat/p2-repograph-integration`.
+
+- `pyproject.toml`: added `repograph @ file:///home/dev/Documents/GitHub/RepoGraph`
+  as a local-path dependency (path-installed for dev; bump to pinned version
+  once RepoGraph releases v0.2.0).
+- `src/context_lifecycle/session/anchor.py`: replaced the P1 "Phase 2 not
+  implemented" stubs. `resolve_anchor_arg(None)` now calls
+  `RepoGraph().find_anchor_for_path(Path.cwd())`; bare-name args are looked
+  up via `RepoGraph().authorization().get_by_name()`. `AmbiguousAnchorError`
+  from RepoGraph is reraised as `AmbiguousAnchor` (mapped to CLI exit code 2
+  by `cli/session.py`).
+- RepoGraph is imported lazily via a `_load_repograph()` helper so tests can
+  monkeypatch it and so a missing dep surfaces as a clean
+  `ManifestNotFound` instead of an import crash.
+- `tests/test_session_anchor.py`: replaced the four "Phase 2" stub tests
+  with seven tests covering the new code paths (inference unique / none /
+  ambiguous, name lookup hit / miss, path resolution unchanged).
+- `tests/test_cli_session.py`: updated the no-arg test to use an empty
+  `REPOGRAPH_REGISTRY` for deterministic ManifestNotFound. Suite: 72 pass.
+
 ## 2026-05-22 — P1 CLI bootstrap + bash hook port to Python (feat/p1-cli-bootstrap)
 
 Implemented Phase 1 of the manifest-cognition work order (ADR 0002). Ported `pre_tool_use.sh` (330 lines bash) and `stop.sh` (116 lines bash) to a Python `cl` CLI shipped from CL's own `.venv/`. Bash hooks under `adapters/claude/hooks/` left untouched as the transition fallback.

@@ -9,10 +9,13 @@ from context_lifecycle.cli.main import app
 runner = CliRunner()
 
 
-def test_session_start_no_arg_errors():
+def test_session_start_no_arg_errors_when_unresolvable(tmp_path, monkeypatch):
+    # Point RepoGraph at an empty registry so cwd inference returns None.
+    monkeypatch.setenv("REPOGRAPH_REGISTRY", str(tmp_path / "empty-registry.yaml"))
     result = runner.invoke(app, ["session", "start"])
     assert result.exit_code == 1
-    assert "Phase 2" in (result.stderr or result.output)
+    out = (result.stderr or "") + result.output
+    assert "could not infer" in out or "not registered" in out or "RepoGraph" in out
 
 
 def test_session_start_bad_path():
