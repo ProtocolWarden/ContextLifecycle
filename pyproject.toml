@@ -13,7 +13,7 @@ dependencies = [
   "pyyaml>=6.0",
   "pydantic>=2.6",
   "typer>=0.12",
-  "repograph @ git+https://github.com/ProtocolWarden/RepoGraph.git@v0.2.0",
+  "repograph @ git+https://github.com/ProtocolWarden/RepoGraph.git@v0.2.1",
 ]
 
 [project.optional-dependencies]

@@ -1,4 +1,8 @@
 # Log
+## 2026-05-22 — Bump repograph pin v0.2.0 → v0.2.1 (alias resolution)
+
+Picks up `can_anchor_host` alias-resolution from RepoGraph v0.2.1. Operators may now pass canonical_name or any registered alias (snake_case dict key, case-insensitive); previously only canonical_name resolved, which masked real boundary violations behind a misleading "not registered" error.
+
 ## 2026-05-22 — fix: recognize `repos_touched` in capture boundary check
 
 E2E anchor flow test caught: `capture(result={"repos_touched": [...]})` was silently skipping RepoGraph authorization because `_extract_repos` only recognized `repos`, `targets`, `target_repos`. The cross-boundary write (PM-anchored session → private-owned repo) wrote successfully when it should have been blocked.
