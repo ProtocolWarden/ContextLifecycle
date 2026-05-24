@@ -52,30 +52,25 @@ def _latest_yaml(directory: Path) -> Path | None:
     return candidates[-1] if candidates else None
 
 
-def _load_handoff(directory: Path) -> WorkerHandoff | None:
-    path = _first_yaml(directory)
+def _load_model(path: Path | None, model):
+    """Validate the YAML at `path` into `model`, or return None on any failure."""
     if path is None:
         return None
     data = load_yaml_safe(path)
     if not isinstance(data, dict):
         return None
     try:
-        return WorkerHandoff.model_validate(data)
+        return model.model_validate(data)
     except Exception:
         return None
+
+
+def _load_handoff(directory: Path) -> WorkerHandoff | None:
+    return _load_model(_first_yaml(directory), WorkerHandoff)
 
 
 def _load_checkpoint(directory: Path) -> LoopCheckpoint | None:
-    path = _latest_yaml(directory)
-    if path is None:
-        return None
-    data = load_yaml_safe(path)
-    if not isinstance(data, dict):
-        return None
-    try:
-        return LoopCheckpoint.model_validate(data)
-    except Exception:
-        return None
+    return _load_model(_latest_yaml(directory), LoopCheckpoint)
 
 
 def _path_has_prefix(target: str, prefix: str) -> bool:

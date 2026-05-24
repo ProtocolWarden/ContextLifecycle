@@ -150,7 +150,10 @@ def _git_is_clean(path: Path) -> bool:
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
         )
+    except subprocess.TimeoutExpired:
+        return False
     except (subprocess.CalledProcessError, FileNotFoundError):
         # Not a git repo / git missing: treat as not-clean to be safe.
         return False

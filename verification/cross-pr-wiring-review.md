@@ -12,7 +12,7 @@ Reviews that the hook fix PRs are correctly linked and that files are consistent
 |----|------|-------|--------|
 | #5 | ContextLifecycle | fix(hooks): enforce allowed_paths, context_risk flags, session-aware stop + jq fallback + test harness | feat/contextguard-hook-fixes |
 | #157 | OperationsCenter | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
-| #899 | VideoFoundry | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
+| #899 | PrivateConsumer | fix(hooks): sync ContextGuard fixes from CLP adapter | feat/contextguard-hook-fixes |
 | #30 | PlatformManifest | feat(manifest): add context_lifecycle participation metadata | feat/clp-participation-metadata |
 
 ---
@@ -35,9 +35,9 @@ diff ContextLifecycle/adapters/claude/hooks/stop.sh \
 
 ---
 
-## G-02: Hook file parity (CLP ↔ VF)
+## G-02: Hook file parity (CLP ↔ PC)
 
-Same check against VideoFoundry.
+Same check against PrivateConsumer.
 
 **Status: ✅ VERIFIED** (files copied directly via cp at sync time)
 
@@ -53,9 +53,9 @@ File: `OperationsCenter/.claude/settings.json`
 
 ---
 
-## G-04: settings.json hook registration (VF)
+## G-04: settings.json hook registration (PC)
 
-File: `VideoFoundry/.claude/settings.json`
+File: `PrivateConsumer/.claude/settings.json`
 
 - Same structure as OC ✅
 
@@ -66,21 +66,21 @@ File: `VideoFoundry/.claude/settings.json`
 | Repo | Fencing | Cognition section | Lifecycle instructions |
 |------|---------|-------------------|----------------------|
 | OperationsCenter | ✅ | ✅ Orchestrator lifecycle | ✅ wake/checkpoint/terminate |
-| VideoFoundry | ✅ | ✅ Audit sitter lifecycle | ✅ wake/checkpoint/terminate |
+| PrivateConsumer | ✅ | ✅ Audit sitter lifecycle | ✅ wake/checkpoint/terminate |
 | ContextLifecycle | ✅ | — (CLP is the protocol, not a user) | — |
 
 ---
 
 ## G-06: Merge order dependency
 
-CLP #5 is the source of truth. OC #157 and VF #899 are downstream syncs. There is no hard merge-order dependency (all three PRs touch different repos), but CLP #5 should be merged first to establish the canonical version before the downstream PRs are tagged as complete.
+CLP #5 is the source of truth. OC #157 and PC #899 are downstream syncs. There is no hard merge-order dependency (all three PRs touch different repos), but CLP #5 should be merged first to establish the canonical version before the downstream PRs are tagged as complete.
 
 ---
 
 ## G-07: No Custodian violations
 
 OC pre-push Custodian guard ran on push and reported `0 findings` for OperationsCenter.  
-VF push succeeded without Custodian boundary violations.
+PC push succeeded without Custodian boundary violations.
 
 ---
 

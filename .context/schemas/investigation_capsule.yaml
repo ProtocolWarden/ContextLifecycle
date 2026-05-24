@@ -25,7 +25,7 @@ current_blocker: ""         # one-line description of the primary blocker right 
 current_phase: ""           # e.g. "initial triage", "remediation", "verification"
 
 failing_invariant: ""       # the gate, watcher, or invariant that triggered this investigation
-                            # be specific: "VideoFoundry gate: transcode_quality_gate failed
+                            # be specific: "PrivateConsumer gate: transcode_quality_gate failed
                             #              on job abc123, threshold 0.85, actual 0.61"
 
 active_hypotheses: []       # list of working hypotheses, most likely first

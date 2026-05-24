@@ -16,7 +16,7 @@
 | `.context/active/` | ✅ | Directory exists (empty = no active capsule, correct at rest) |
 | `.context/checkpoints/` | ✅ | Directory exists |
 | `.context/handoffs/` | ✅ | Directory exists |
-| `.context/examples/` | ✅ | `oc_watchdog_checkpoint.yaml`, `vf_audit_capsule.yaml` |
+| `.context/examples/` | ✅ | `oc_watchdog_checkpoint.yaml`, `pc_audit_capsule.yaml` |
 | `adapters/claude/hooks/pre_tool_use.sh` | ✅ | ContextGuard enforcement hook |
 | `adapters/claude/hooks/stop.sh` | ✅ | ContextGuard stop hook |
 | `adapters/claude/hooks/README.md` | ✅ | Installation and behavior docs |
@@ -81,7 +81,7 @@ Key sections:
 | File | Use case |
 |------|----------|
 | `presets/watchdog-loop.yaml` | OC-style monitoring orchestrator |
-| `presets/audit-sitter.yaml` | VF-style audit investigator |
+| `presets/audit-sitter.yaml` | consumer-style audit investigator |
 | `presets/ci-investigator.yaml` | CI failure investigation worker |
 
 ---

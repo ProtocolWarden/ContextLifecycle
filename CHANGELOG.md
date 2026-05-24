@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- Onboarded the repository to the Custodian guard: added `.custodian/config.yaml`,
+  pre-commit and pre-push hooks under `.hooks/`, and drove the audit to zero findings.
+- Split model tests into per-module files and added unit tests for `io.yaml_io` and
+  `hooks.decisions`.
+- Hardened code surfaces: `subprocess.run` timeout, `json.dumps(ensure_ascii=False)`,
+  `NoReturn` annotations on hook entrypoints, and a shared YAML-model loader.
+- Genericized references to a private consumer repository in tracked docs/examples.
+
+## [0.3.0]
+
+- Session anchoring via `cl session start/show/end` with RepoGraph-backed resolution.
+- Claude Code hook adapters (`cl hook pre_tool_use`, `cl hook stop`) over pure
+  decision functions.
+- Pydantic schemas for `InvestigationCapsule`, `LoopCheckpoint`, `WorkerHandoff`,
+  and `CLConfig`.

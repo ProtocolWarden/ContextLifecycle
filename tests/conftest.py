@@ -1,13 +1,38 @@
-"""Shared pytest fixtures for ContextLifecycle tests."""
+"""Shared pytest fixtures for ContextLifecycle tests.
+
+Includes a venv guard: refuses to run unless invoked from inside this project's
+`.venv` — prevents accidental test runs against the global interpreter.
+"""
 
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 import yaml
+
+_REPO = Path(__file__).resolve().parent.parent
+_EXPECTED_VENV = _REPO / ".venv"
+
+
+def _running_in_venv() -> bool:
+    return Path(sys.prefix).resolve() == _EXPECTED_VENV.resolve()
+
+
+if not _running_in_venv() and not os.environ.get("CUSTODIAN_SKIP_VENV_GUARD"):
+    sys.stderr.write(
+        f"ERROR: Tests must be run inside this project's virtual environment.\n"
+        f"Expected: {_EXPECTED_VENV}\n"
+        f"Active:   {sys.prefix}\n\n"
+        f"Activate it first:\n"
+        f"  source .venv/bin/activate\n"
+        f"Or invoke pytest through the venv directly:\n"
+        f"  .venv/bin/pytest\n"
+    )
+    sys.exit(2)
 
 from context_lifecycle.models.config import CLConfig
 from context_lifecycle.session.paths import SessionPaths

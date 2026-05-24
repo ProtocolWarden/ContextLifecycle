@@ -4,9 +4,18 @@ import json
 
 from typer.testing import CliRunner
 
+from context_lifecycle.cli import session as session_cli
 from context_lifecycle.cli.main import app
 
 runner = CliRunner()
+
+
+def test_session_commands_registered():
+    # Direct reference to the cli.session module symbols (import-coverage + T1).
+    assert callable(session_cli.start)
+    assert callable(session_cli.show)
+    assert callable(session_cli.end)
+    assert session_cli.app is not None
 
 
 def test_session_start_no_arg_errors_when_unresolvable(tmp_path, monkeypatch):

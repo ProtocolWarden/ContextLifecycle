@@ -1,0 +1,37 @@
+repo_key: ContextLifecycle
+src_root: src/context_lifecycle
+tests_root: tests
+
+# ---------------------------------------------------------------------------
+# Privacy / boundary enforcement (Custodian B-class)
+# ---------------------------------------------------------------------------
+# Names declared private by the boundary artifact cause B1 to fail any tracked
+# file that mentions them. Default excludes (.console/**, .custodian/config.yaml)
+# spare operator-private surfaces.
+privacy:
+  require_boundary_artifact: true
+
+# ---------------------------------------------------------------------------
+# Audit: per-detector exclusions
+# ---------------------------------------------------------------------------
+audit:
+  # session/anchor + cli/session read CL_ANCHOR / CL_SESSION_ID / SHELL from the
+  # environment in the CLI layer; this *is* the config/entry layer for those vars.
+  c13_allowed_paths:
+    - "src/context_lifecycle/cli/session.py"
+    - "src/context_lifecycle/session/anchor.py"
+    - "src/context_lifecycle/session/ids.py"
+
+  exclude_paths:
+    # errors.py is a pure typed-exception hierarchy (no logic to unit test).
+    # cli/main.py is a thin Typer wiring entrypoint (sub-apps are tested via their
+    # own modules and the `cl` CliRunner tests).
+    T1:
+      - src/context_lifecycle/errors.py
+      - src/context_lifecycle/cli/main.py
+    T6:
+      - src/context_lifecycle/errors.py
+      - src/context_lifecycle/cli/main.py
+    T7:
+      - src/context_lifecycle/errors.py
+      - src/context_lifecycle/cli/main.py

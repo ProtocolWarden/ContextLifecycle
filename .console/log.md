@@ -1,4 +1,15 @@
 # Log
+## 2026-05-23 — chore: onboard Custodian (config, hooks, tests)
+
+Brought the repo under the Custodian guard; drove the audit from 88 findings to 0 (clean).
+
+- `.custodian/config.yaml`: added `c13_allowed_paths` (cli/session, session/anchor, session/ids — the env-reading CLI layer) and T1/T6/T7 exclusions for `errors.py` (pure exception hierarchy) and `cli/main.py` (Typer wiring entrypoint), each with a rationale comment.
+- Code fixes (behavior-preserving): `subprocess.run` timeout in `session/anchor.py`; `json.dumps(ensure_ascii=False)` in `cli/hook.py` + `cli/session.py`; `NoReturn` on the two hook entrypoints; refactored the duplicate `_load_handoff`/`_load_checkpoint` bodies into a shared `_load_model` helper (D11).
+- Tests: renamed existing test files to the `test_<stem>.py` parallel convention; split `test_models.py` into per-model files; added real unit tests for `io/yaml_io`, `hooks/decisions`, the nested schema components (ContextRisk/Orchestrator/RelaunchMetadata/WorkerScope/Lease/GuardConfig/LoopConfig/CapsuleExclusions/StopReport), and the module-level `session/paths` helpers. Fixed N2 (`H()` → `_hook_input`) and T2 (added assert). 111 tests pass.
+- Privacy (B1): genericized references to a private consumer repository in tracked docs/examples and renamed the two files that carried the private name.
+- Workspace: added venv guard to `tests/conftest.py`; added `.hooks/pre-commit` + `.hooks/pre-push` (copied from CoreRunner); fixed `.gitignore` `.console/*` policy + un-tracked `CLAUDE.md`; added `.env.example`, `CHANGELOG.md`, `SECURITY.md`, `docs/README.md`, and README `Architecture` / `What This Is Not` sections.
+- Set `git config core.hooksPath .hooks`.
+
 ## 2026-05-22 — Bump repograph pin v0.2.0 → v0.2.1 (alias resolution)
 
 Picks up `can_anchor_host` alias-resolution from RepoGraph v0.2.1. Operators may now pass canonical_name or any registered alias (snake_case dict key, case-insensitive); previously only canonical_name resolved, which masked real boundary violations behind a misleading "not registered" error.

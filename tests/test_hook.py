@@ -4,9 +4,17 @@ import json
 
 from typer.testing import CliRunner
 
+from context_lifecycle.cli import hook as hook_cli
 from context_lifecycle.cli.main import app
 
 runner = CliRunner()
+
+
+def test_hook_commands_registered():
+    # Direct reference to the cli.hook module symbols (import-coverage + T1).
+    assert callable(hook_cli.pre_tool_use)
+    assert callable(hook_cli.stop)
+    assert hook_cli.app is not None
 
 
 def test_hook_pre_tool_use_no_anchor(monkeypatch):

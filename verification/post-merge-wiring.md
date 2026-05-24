@@ -1,7 +1,7 @@
 # Phase I — Post-Merge Wiring Verification
 
 **Date:** 2026-05-21  
-**Status:** Pending merge of CLP #5, OC #157, VF #899
+**Status:** Pending merge of CLP #5, OC #157, PC #899
 
 ---
 
@@ -15,8 +15,8 @@ After merge to main, confirm hooks exist at expected paths:
 | ContextLifecycle | `adapters/claude/hooks/stop.sh` | exists, executable |
 | OperationsCenter | `.claude/hooks/pre_tool_use.sh` | exists, executable |
 | OperationsCenter | `.claude/hooks/stop.sh` | exists, executable |
-| VideoFoundry | `.claude/hooks/pre_tool_use.sh` | exists, executable |
-| VideoFoundry | `.claude/hooks/stop.sh` | exists, executable |
+| PrivateConsumer | `.claude/hooks/pre_tool_use.sh` | exists, executable |
+| PrivateConsumer | `.claude/hooks/stop.sh` | exists, executable |
 
 ```bash
 # Verify executable bit
@@ -48,7 +48,7 @@ Verification documents in `verification/` should be committed on the same featur
 |------|-------|
 | `context-lifecycle-protocol-health.md` | A (CLP) |
 | `operations-center-context-wiring.md` | A (OC) |
-| `videofoundry-context-wiring.md` | A (VF) |
+| `private-consumer-context-wiring.md` | A (PC) |
 | `schema-example-validation.md` | B |
 | `contextguard-hook-matrix.md` | C |
 | `context-risk-enforcement.md` | D |
@@ -69,7 +69,7 @@ context-lifecycle-v0.1.0
 ```
 
 Tag message:
-> ContextGuard hook enforcement complete. Enforces: capsule presence/validity, lease expiry, path scope (allowed + forbidden), mutation policy, subagent budget, context_risk flags (checkpoint_stale block, high_parallelism block, subagent_heavy warn, long_lived_session warn, reload_scope_too_large warn). Session-aware stop hook. Deployed to OC and VF.
+> ContextGuard hook enforcement complete. Enforces: capsule presence/validity, lease expiry, path scope (allowed + forbidden), mutation policy, subagent budget, context_risk flags (checkpoint_stale block, high_parallelism block, subagent_heavy warn, long_lived_session warn, reload_scope_too_large warn). Session-aware stop hook. Deployed to OC and PC.
 
 ---
 
@@ -78,7 +78,7 @@ Tag message:
 - Fixture-based automated tests for hook enforcement (`adapters/claude/hooks/tests/`)
 - GitHub Actions workflow to run hook tests on PR
 - `context_risk` flag setter utility (helper script to update a checkpoint's risk flags without full YAML rewrite)
-- Hook parity test: CI step that diffs CLP adapter against OC/VF copies and fails if they diverge
+- Hook parity test: CI step that diffs CLP adapter against OC/PC copies and fails if they diverge
 
 ---
 

@@ -1,6 +1,6 @@
 # Contributing to ContextLifecycle
 
-ContextLifecycle is a generic cognition lifecycle runtime for bounded, resumable agent sessions. It defines schemas, enforcement semantics, and runtime adapters — not OC/VF-specific scaffolding.
+ContextLifecycle is a generic cognition lifecycle runtime for bounded, resumable agent sessions. It defines schemas, enforcement semantics, and runtime adapters — not OC/consumer-specific scaffolding.
 
 ## Before You Start
 
@@ -19,7 +19,7 @@ ContextLifecycle is a generic cognition lifecycle runtime for bounded, resumable
 - Documentation improvements
 
 **Out of scope:**
-- OC/VF-specific configs or escalation policies
+- OC/consumer-specific configs or escalation policies
 - Private operational state
 - Machine-specific assumptions
 

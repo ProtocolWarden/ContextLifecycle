@@ -7,7 +7,7 @@
 ## Checklist: ContextLifecycle PR #5
 
 - [x] Hook fixes committed on `feat/contextguard-hook-fixes`
-- [x] Verification documents written: A (CLP), A (OC), A (VF), B, C, D, E, F, G, H, I
+- [x] Verification documents written: A (CLP), A (OC), A (PC), B, C, D, E, F, G, H, I
 - [x] pre_tool_use.sh: all 5 enforcement gaps closed
 - [x] pre_tool_use.sh: python3/jq fallback added (portability)
 - [x] stop.sh: session-aware checkpoint detection via SESSION_MARKER
@@ -44,7 +44,7 @@
 
 ---
 
-## Checklist: VideoFoundry PR #899
+## Checklist: PrivateConsumer PR #899
 
 - [x] Hooks synced from CLP adapter (identical copy)
 - [x] `.console/log.md` updated with sync entry
@@ -60,7 +60,7 @@
 
 1. CLP #5 → main
 2. OC #157 → main (or dev → main per branch policy)
-3. VF #899 → dev → main (private repo, per VF branch policy)
+3. PC #899 → dev → main (private repo, per PC branch policy)
 
 ---
 

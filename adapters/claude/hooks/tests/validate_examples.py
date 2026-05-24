@@ -77,7 +77,7 @@ def check_config(label, path):
 print("\nCLP schema/example validation")
 print("─" * 60)
 print("\nInvestigationCapsule examples:")
-check("vf_audit_capsule", REPO_ROOT / ".context/examples/vf_audit_capsule.yaml", CAPSULE_REQUIRED)
+check("pc_audit_capsule", REPO_ROOT / ".context/examples/pc_audit_capsule.yaml", CAPSULE_REQUIRED)
 check("capsule_template", REPO_ROOT / ".context/templates/investigation_capsule.template.yaml",
       ["capsule_id", "schema_version", "status"], keys_only=True)
 

@@ -133,13 +133,13 @@ Hook on Write: allowed.
 
 ---
 
-## F-03: VF Audit Sitter Cycle Simulation
+## F-03: Audit Sitter Cycle Simulation
 
 ### Preconditions
 
-- VF audit sitter wakes; `batch-20260521-a` transcode quality gate failed
+- audit sitter wakes; `batch-20260521-a` transcode quality gate failed
 - Active capsule: `inv-20260521-transcode-quality-001.yaml` (status: `active`, phase: `remediation`)
-- Latest checkpoint: `chk-20260521-1430-vf-audit`
+- Latest checkpoint: `chk-20260521-1430-pc-audit`
 - No active handoff
 
 ### Cycle trace

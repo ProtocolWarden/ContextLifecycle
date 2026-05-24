@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from context_lifecycle.hooks.stop import evaluate_stop
+from context_lifecycle.hooks.stop import StopReport, evaluate_stop
 from context_lifecycle.models.config import CLConfig
 
 
@@ -11,6 +11,7 @@ def test_stop_no_checkpoint_with_enforcement(paths, default_config, tmp_path):
     marker = tmp_path / "marker"
     marker.touch()
     report = evaluate_stop(paths=paths, config=default_config, session_marker=marker)
+    assert isinstance(report, StopReport)
     assert report.enforcement_message is not None
     assert "without a LoopCheckpoint" in report.enforcement_message
 

@@ -35,7 +35,7 @@
 ## E-02: audit-sitter.yaml
 
 **File:** `presets/audit-sitter.yaml`  
-**Target use case:** VF-style automated audit loop for gate failure investigation
+**Target use case:** consumer-style automated audit loop for gate failure investigation
 
 | Field | Value | Valid |
 |-------|-------|-------|

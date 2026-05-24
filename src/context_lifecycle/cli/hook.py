@@ -11,6 +11,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 
@@ -57,7 +58,7 @@ def _bootstrap_session() -> tuple[Path, str, SessionPaths, CLConfig]:
         session_id = require_session_env()
     except (AnchorMissing, SessionNotStarted) as e:
         # Hard error — surface message and exit 2 (blocks the tool call).
-        print(json.dumps({"decision": "block", "reason": str(e)}))
+        print(json.dumps({"decision": "block", "reason": str(e)}, ensure_ascii=False))
         print(str(e), file=sys.stderr)
         raise typer.Exit(code=2)
 
@@ -67,7 +68,7 @@ def _bootstrap_session() -> tuple[Path, str, SessionPaths, CLConfig]:
 
 
 @app.command("pre_tool_use")
-def pre_tool_use() -> None:
+def pre_tool_use() -> NoReturn:
     """Evaluate the PreToolUse hook. Reads JSON payload from stdin."""
     anchor, session_id, paths, config = _bootstrap_session()
     payload = _read_stdin_json()
@@ -82,14 +83,14 @@ def pre_tool_use() -> None:
         print(w.reason, file=sys.stderr)
 
     if result.is_block:
-        print(json.dumps({"decision": "block", "reason": result.reason}))
+        print(json.dumps({"decision": "block", "reason": result.reason}, ensure_ascii=False))
         print(result.reason, file=sys.stderr)
         raise typer.Exit(code=2)
     raise typer.Exit(code=0)
 
 
 @app.command("stop")
-def stop() -> None:
+def stop() -> NoReturn:
     """Evaluate the Stop hook. Reads JSON payload from stdin (ignored for now)."""
     anchor, session_id, paths, config = _bootstrap_session()
     _ = _read_stdin_json()

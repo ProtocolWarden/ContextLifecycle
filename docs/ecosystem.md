@@ -9,7 +9,7 @@ ContextLifecycle is designed to grow. The core primitives (InvestigationCapsule,
 | Repo | Integration | Notes |
 |------|-------------|-------|
 | [OperationsCenter](https://github.com/ProtocolWarden/OperationsCenter) | Watchdog loop checkpointing, investigation worker dispatch | Phase 3 |
-| [VideoFoundry](https://github.com/ProtocolWarden/VideoFoundry) | Audit sitter capsules, gate remediation handoffs | Phase 4 |
+| [PrivateConsumer](https://example.com/private-consumer) | Audit sitter capsules, gate remediation handoffs | Phase 4 |
 
 ---
 

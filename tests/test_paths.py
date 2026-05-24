@@ -25,3 +25,17 @@ def test_session_paths_ensure(tmp_path):
 
 def test_archived_root(tmp_path):
     assert archived_root(tmp_path) == tmp_path / ".context" / "archived"
+
+
+def test_module_level_path_helpers(tmp_path):
+    from context_lifecycle.session.paths import (
+        checkpoints_dir,
+        handoffs_dir,
+        session_root,
+    )
+
+    sid = "s-2026-05-22-abcd"
+    root = session_root(tmp_path, sid)
+    assert root == tmp_path / ".context" / "sessions" / sid
+    assert checkpoints_dir(tmp_path, sid) == root / "checkpoints"
+    assert handoffs_dir(tmp_path, sid) == root / "handoffs"

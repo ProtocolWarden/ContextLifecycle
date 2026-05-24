@@ -106,7 +106,8 @@ def start(
                     "anchor": str(anchor),
                     "session_id": session_id,
                     "manifest_name": manifest_name,
-                }
+                },
+                ensure_ascii=False,
             )
         )
     else:

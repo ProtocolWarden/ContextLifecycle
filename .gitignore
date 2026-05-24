@@ -1,8 +1,16 @@
 # Runtime scratch state — never commit
 .context/tmp/
 
-# Generated console startup brief — source truth is .console/*.md
-.console/.context
+# .console — track the editable truth files; ignore regenerated context.
+.console/*
+!.console/task.md
+!.console/guidelines.md
+!.console/backlog.md
+!.console/log.md
+
+# Operator agent instructions — local, not tracked
+CLAUDE.md
+
 .context/active/*.lock
 .context/leases/*.live
 .context/leases/*.pid
@@ -30,5 +38,6 @@ node_modules/
 # Secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key

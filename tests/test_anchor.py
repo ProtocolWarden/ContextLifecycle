@@ -138,4 +138,5 @@ def test_validate_anchor_skeleton_required(tmp_path):
 
 def test_validate_anchor_skeleton_present(tmp_path):
     (tmp_path / ".context").mkdir()
-    validate_anchor(tmp_path, require_context_skeleton=True)  # no raise
+    # Returns None and does not raise when the skeleton is present.
+    assert validate_anchor(tmp_path, require_context_skeleton=True) is None

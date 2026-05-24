@@ -13,9 +13,9 @@ Covers: capsule example, capsule template, checkpoint example, checkpoint templa
 
 ---
 
-## 1. InvestigationCapsule — vf_audit_capsule.yaml
+## 1. InvestigationCapsule — pc_audit_capsule.yaml
 
-**File:** `.context/examples/vf_audit_capsule.yaml`  
+**File:** `.context/examples/pc_audit_capsule.yaml`  
 **Schema:** `.context/schemas/investigation_capsule.yaml`
 
 | Required field | Present | Value |
@@ -25,7 +25,7 @@ Covers: capsule example, capsule template, checkpoint example, checkpoint templa
 | `status` | ✅ | `active` |
 | `created_at` | ✅ | `2026-05-21T14:32:00Z` |
 | `created_by` | ✅ | `audit-sitter-worker-03` |
-| `related_checkpoint_id` | ✅ | `chk-20260521-1430-vf-audit` |
+| `related_checkpoint_id` | ✅ | `chk-20260521-1430-pc-audit` |
 | `current_blocker` | ✅ | Non-empty |
 | `current_phase` | ✅ | `remediation` |
 | `failing_invariant` | ✅ | Non-empty |

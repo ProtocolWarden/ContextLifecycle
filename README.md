@@ -50,6 +50,15 @@ It provides:
 
 ---
 
+## What This Is Not
+
+- **Not an agent framework.** It does not spawn, schedule, or orchestrate agents — it bounds the cognition lifecycle of loops you already run.
+- **Not a prompt library or model wrapper.** Models and runtimes are replaceable; the lifecycle surface is the durable part.
+- **Not OC- or consumer-specific scaffolding.** Schemas and enforcement are generic; per-repo watcher/worker policy lives in each consumer's `.context/config.yaml`.
+- **Not a persistence/database layer.** State lives as plain YAML under `.context/`; there is no server, daemon, or external store.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -63,6 +72,39 @@ cp .context/templates/clp_config.template.yaml /your/repo/.context/config.yaml
 # 3. Wire ContextGuard (Claude Code)
 cp -r adapters/claude/.claude/ /your/repo/.claude/
 ```
+
+---
+
+## Architecture
+
+ContextLifecycle is a small Python library (`context_lifecycle`) plus a `.context/` cognition surface and runtime adapters. The pieces:
+
+```text
+cl session start <manifest>   →  resolves an anchor manifest (via RepoGraph),
+                                  mints a session id, exports CL_ANCHOR / CL_SESSION_ID
+        │
+        ▼
+runtime adapter (e.g. Claude Code hooks)
+        │   PreToolUse / Stop
+        ▼
+cl hook pre_tool_use | stop   →  pure decision functions over loaded state
+        │
+        ▼
+.context/sessions/<sid>/       (active capsules, handoffs, checkpoints)
+```
+
+Module map (`src/context_lifecycle/`):
+
+| Module | Responsibility |
+| ------ | -------------- |
+| `models/` | Pydantic schemas — `InvestigationCapsule`, `LoopCheckpoint`, `WorkerHandoff`, `CLConfig` |
+| `hooks/` | Pure decision logic (`evaluate_pre_tool_use`, `evaluate_stop`) returning allow/block/warn |
+| `session/` | Anchor resolution, session ids, on-disk path layout |
+| `cli/` | `cl` Typer entrypoint wrapping sessions and hook adapters |
+| `io/` | YAML load/dump helpers |
+| `errors.py` | Typed error hierarchy mapped to CLI exit codes |
+
+Decision functions are pure (state in, verdict out); the CLI layer owns I/O and exit-code mapping.
 
 ---
 
@@ -145,7 +187,7 @@ Ready-to-use configs for common patterns:
 ## Real-world Consumers
 
 - [OperationsCenter](https://github.com/ProtocolWarden/OperationsCenter) — watchdog loop integration
-- [VideoFoundry](https://github.com/ProtocolWarden/VideoFoundry) — audit sitter integration
+- [PrivateConsumer](https://example.com/private-consumer) — audit sitter integration
 
 ---
 
