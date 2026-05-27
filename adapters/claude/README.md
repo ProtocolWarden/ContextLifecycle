@@ -72,3 +72,15 @@ Claude Code JSON output format is also supported:
 - `bash` 4+
 - `python3` (for YAML parsing via `check_capsule.py`)
 - `jq` (for JSON input parsing from Claude Code)
+
+## Installing / re-syncing the adapter
+
+The per-repo `.claude/hooks/` + `settings.json` wiring is installed by the
+tracked, committed `adapters/install.sh` (NOT by hand — `.claude/settings.json`
+is often gitignored, so the integration must be reproducible from a committed
+script). Re-running re-syncs drifted copies to this canonical adapter:
+
+```bash
+adapters/install.sh /path/to/repo            # claude (default)
+adapters/install.sh /path/to/repo --cli claude,codex,aider
+```

@@ -174,3 +174,8 @@ _Free-form scratch. Clear periodically — old entries can be deleted once no lo
 
 - pre_tool_use.sh + stop.sh now resolve .context under CL_ANCHOR (the manifest anchor) instead of git-toplevel/pwd. pre_tool_use BLOCKS when CL_ANCHOR is unset; stop.sh skips gracefully. Closes the leak that let un-anchored workspace-root .context exist (now retired). Added hook test C-23 (unset→block); 23/23 pass.
 - Updated verification/cross-pr-wiring-review.md G-08: workspace-root .context retired.
+
+## 2026-05-24 — Tracked adapter installer (Phase 1 of multi-CLI CL integration)
+
+- Added adapters/install.sh (committed, idempotent, re-syncs drift): copies the canonical claude hooks into a repo .claude/hooks/ and merges the hook wiring into settings.json (preserving other keys). Fixes the divergent per-repo hook copies + the untracked-settings problem. --cli flag is extensible; codex/aider skip gracefully until their adapters land (phase 2/3). Test: adapters/install_test.sh (6/6).
+- Foundation for: codex adapter (plugin/MCP), aider adapter (session-boundary), and rewiring OC panes + OC/VF loops to anchor via `cl session start` (= owning manifest, RepoGraph-resolved). RepoGraph already provides repo→manifest (repo_owner map).
