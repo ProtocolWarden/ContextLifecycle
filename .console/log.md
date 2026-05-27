@@ -169,3 +169,8 @@ _Where did you leave off? What should be verified next session?_
 _Free-form scratch. Clear periodically — old entries can be deleted once no longer relevant._
 
 ---
+
+## 2026-05-24 — Hooks hard-require CL_ANCHOR (no CWD fallback)
+
+- pre_tool_use.sh + stop.sh now resolve .context under CL_ANCHOR (the manifest anchor) instead of git-toplevel/pwd. pre_tool_use BLOCKS when CL_ANCHOR is unset; stop.sh skips gracefully. Closes the leak that let un-anchored workspace-root .context exist (now retired). Added hook test C-23 (unset→block); 23/23 pass.
+- Updated verification/cross-pr-wiring-review.md G-08: workspace-root .context retired.

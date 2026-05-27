@@ -6,6 +6,9 @@
 set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+# Hooks resolve .context under CL_ANCHOR (the manifest anchor); for the test
+# fixtures that anchor is the repo root itself.
+export CL_ANCHOR="${REPO_ROOT}"
 HOOK="${REPO_ROOT}/adapters/claude/hooks/pre_tool_use.sh"
 CONFIG_FILE="${REPO_ROOT}/.context/config.yaml"
 ACTIVE_DIR="${REPO_ROOT}/.context/active"
@@ -474,6 +477,12 @@ YAML
 result=$(run_hook '{"tool_name":"Bash","tool_input":{"command":"ls"}}')
 assert "C-22" "all context_risk flags false → ALLOW, no warn" "$result" "0"
 rm -f "${CHECKPOINT_DIR}/test-all-false.yaml"
+
+# ── Anchor enforcement: no CL_ANCHOR → BLOCK (never fall back to CWD) ──
+result=$(CL_ANCHOR="" bash "$HOOK" <<< '{"tool_name":"Bash","tool_input":{"command":"ls"}}' \
+  > "$TMP_DIR/stdout_cap" 2>"$TMP_DIR/stderr_cap"; \
+  echo "EXIT:$?|STDOUT:$(cat "$TMP_DIR/stdout_cap")|STDERR:$(cat "$TMP_DIR/stderr_cap")")
+assert "C-23" "CL_ANCHOR unset → BLOCK (anchor required)" "$result" "2" "CL_ANCHOR is not set"
 
 # ════════════════════════════════════════════════════════════════════
 # RESULTS

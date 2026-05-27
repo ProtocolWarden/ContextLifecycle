@@ -86,14 +86,15 @@ PC push succeeded without Custodian boundary violations.
 
 ---
 
-## G-08: Workspace `.context/` created
+## G-08: Workspace `.context/` — RETIRED (2026-05-24)
 
-`~/Documents/GitHub/.context/` created with:
-- `active/`, `checkpoints/`, `capsules/`, `handoffs/`, `tmp/` directories
-- `.gitignore` preventing accidental staging (`* !.gitignore !README.md`)
-- `README.md` explaining intent, constraints, and ownership model
-
-Local-only. Not git-initialized. No tracked file in any repo references this path.
+The workspace-root `~/Documents/GitHub/.context/` scratch space has been
+**retired**. Cognition anchors at a manifest *always* (ADR 0002 / 0003): the
+adapter hooks now hard-require `CL_ANCHOR` and resolve `.context/` under it,
+with **no CWD fallback** — so an un-anchored workspace-root context can no
+longer be created. Cross-repo coordination state belongs under the anchoring
+manifest's `.context/` (PrivateManifest hosts cognition; PlatformManifest is the
+ecosystem map), which is git-tracked like `.console/`.
 
 ---
 
