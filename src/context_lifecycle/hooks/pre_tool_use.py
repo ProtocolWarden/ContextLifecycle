@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """PreToolUse hook decision logic. Port of adapters/claude/hooks/pre_tool_use.sh.
 
 Reads cognition state from the *anchoring manifest's* `.context/sessions/<sid>/`,

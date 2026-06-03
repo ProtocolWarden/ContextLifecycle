@@ -7,7 +7,6 @@ from __future__ import annotations
 import io
 import json
 
-import pytest
 from typer.testing import CliRunner
 
 from context_lifecycle.cli import context as ctx

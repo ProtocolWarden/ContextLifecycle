@@ -45,4 +45,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run tests
+        env:
+          CUSTODIAN_SKIP_VENV_GUARD: "1"  # CI runs in setup-python's interpreter, not the repo .venv
         run: pytest -q

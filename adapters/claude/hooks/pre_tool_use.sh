@@ -335,4 +335,117 @@ except Exception:
 fi
 
 # All checks passed
+# --- Warm context injection (Phase 2-wire, spec §4) ------------------------
+# Inert until .context/config.yaml injection.enabled: true. Emits warm leaf-doc
+# conventions as PreToolUse additionalContext (parsed on exit 0 only). Never
+# blocks: any failure is swallowed and falls through to the final `exit 0`.
+if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
+  INJECT_ENABLED=false
+  if [[ -f "${CONFIG_FILE}" ]] && command -v python3 &>/dev/null; then
+    INJECT_ENABLED=$(python3 -c "
+try:
+    import yaml
+    with open('${CONFIG_FILE}') as f:
+        c = yaml.safe_load(f) or {}
+    print(str(c.get('injection', {}).get('enabled', False)).lower())
+except Exception:
+    print('false')
+" 2>/dev/null || echo "false")
+  fi
+
+  if [[ "$INJECT_ENABLED" == "true" ]]; then
+    # Entire emission isolated: any failure is swallowed, never blocks the call.
+    {
+      ENGINE="${REPO_ROOT}/.context/.engine/route.py"
+      # routes.yaml uses repo-relative globs; strip the anchor prefix if absolute.
+      REL_PATH="${TARGET_PATH#${REPO_ROOT}/}"
+      if [[ -n "$REL_PATH" && -f "$ENGINE" ]]; then
+        CTX="$(python3 "$ENGINE" --target "$REL_PATH" --root "$REPO_ROOT" 2>/dev/null || true)"
+        if [[ -n "$CTX" ]]; then
+          CTX="$CTX" python3 -c "
+import json, os
+ctx = os.environ.get('CTX', '')
+print(json.dumps({
+    'hookSpecificOutput': {
+        'hookEventName': 'PreToolUse',
+        'additionalContext': ctx,
+    }
+}))
+" 2>/dev/null || true
+        fi
+      fi
+    } || true
+  fi
+fi
+
+# --- Campaign-close consolidation trigger (Phase 5, spec §2.3) -------------
+# Fires the dry-run distill/prune plan when the campaign boundary changes.
+# Gated on injection.enabled; runs at most once per boundary change via a cheap
+# mtime throttle (only does work when task.md is newer than the last-seen
+# marker); consolidate.py is DRY-RUN here (no --apply) — emits a plan to stderr,
+# mutates nothing. Wrapped so any failure falls through to the final `exit 0`.
+{
+  TASK="${REPO_ROOT}/.console/task.md"
+  SEEN_FILE="${SESSION_MARKER}.last-seen-campaign"
+  if [[ -f "$TASK" ]] && { [[ ! -f "$SEEN_FILE" ]] || [[ "$TASK" -nt "$SEEN_FILE" ]]; }; then
+    INJECT_ENABLED=false
+    if [[ -f "${CONFIG_FILE}" ]] && command -v python3 &>/dev/null; then
+      INJECT_ENABLED=$(python3 -c "
+try:
+    import yaml
+    with open('${CONFIG_FILE}') as f:
+        c = yaml.safe_load(f) or {}
+    print(str(c.get('injection', {}).get('enabled', False)).lower())
+except Exception:
+    print('false')
+" 2>/dev/null || echo "false")
+    fi
+
+    if [[ "$INJECT_ENABLED" == "true" ]]; then
+      CAMP="${REPO_ROOT}/.context/.engine/campaign.py"
+      ENGINE="${REPO_ROOT}/.context/.engine/consolidate.py"
+      LAST_SEEN_ID=""; LAST_SEEN_HASH=""
+      if [[ -f "$SEEN_FILE" ]]; then
+        LAST_SEEN_ID="$(sed -n '1p' "$SEEN_FILE" 2>/dev/null || true)"
+        LAST_SEEN_HASH="$(sed -n '2p' "$SEEN_FILE" 2>/dev/null || true)"
+      fi
+      CHANGED=$(LAST_SEEN_ID="$LAST_SEEN_ID" LAST_SEEN_HASH="$LAST_SEEN_HASH" \
+        CAMP="$CAMP" TASK="$TASK" python3 -c "
+import os, sys, importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('cl_campaign', os.environ['CAMP'])
+m = importlib.util.module_from_spec(spec)
+sys.modules['cl_campaign'] = m  # @dataclass needs the module in sys.modules
+spec.loader.exec_module(m)
+task = Path(os.environ['TASK'])
+changed = m.boundary_changed(task, os.environ.get('LAST_SEEN_ID') or None,
+                             os.environ.get('LAST_SEEN_HASH') or None)
+camp = m.parse_task(task)
+cid = (camp.campaign_id if camp else '') or ''
+h = m.objective_hash(camp.objective) if camp else ''
+print(('true' if changed else 'false') + '\t' + cid + '\t' + h)
+" 2>/dev/null || printf 'false\t\t')
+
+      FIRE="$(printf '%s' "$CHANGED" | cut -f1)"
+      NEW_ID="$(printf '%s' "$CHANGED" | cut -f2)"
+      NEW_HASH="$(printf '%s' "$CHANGED" | cut -f3)"
+
+      if [[ "$FIRE" == "true" ]]; then
+        PLAN="$(python3 "$ENGINE" --root "$REPO_ROOT" 2>/dev/null || true)"
+        if [[ -n "$PLAN" ]]; then
+          echo "ContextGuard: campaign boundary changed — consolidation plan (dry-run):" >&2
+          printf '%s\n' "$PLAN" >&2
+          echo "  Review, then run: python3 ${ENGINE} --root ${REPO_ROOT} --apply" >&2
+        fi
+      fi
+      # Record last-seen + reset the mtime gate so we don't re-check until
+      # task.md changes again (fires at most once per boundary change).
+      printf '%s\n%s\n' "$NEW_ID" "$NEW_HASH" > "$SEEN_FILE" 2>/dev/null || true
+    else
+      # Flag off: reset the mtime gate cheaply so we don't recompute each call.
+      touch "$SEEN_FILE" 2>/dev/null || true
+    fi
+  fi
+} || true
+
 exit 0

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Session anchor + id + path helpers."""
 
 from context_lifecycle.session.anchor import (

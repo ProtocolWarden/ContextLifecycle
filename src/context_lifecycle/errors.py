@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Typed errors for ContextLifecycle.
 
 Error → exit-code mapping for CLI surfaces is owned by the CLI layer, not

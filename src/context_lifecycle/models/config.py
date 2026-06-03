@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """GuardConfig — mirrors the .context/config.yaml structure consumed by hooks."""
 
 from __future__ import annotations

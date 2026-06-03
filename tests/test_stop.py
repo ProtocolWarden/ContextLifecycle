@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 from context_lifecycle.hooks.stop import StopReport, evaluate_stop
 from context_lifecycle.models.config import CLConfig

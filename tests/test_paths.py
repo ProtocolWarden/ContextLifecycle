@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 from __future__ import annotations
 
-from pathlib import Path
 
 from context_lifecycle.session.paths import SessionPaths, archived_root
 

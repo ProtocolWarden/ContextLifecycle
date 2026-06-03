@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """CL_SESSION_ID generation + env read.
 
 Format per ADR 0002 P0.1: `s-<YYYY-MM-DD>-<4-char-rand>`.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """YAML load/dump helpers — no Pydantic dependency at this layer."""
 
 from __future__ import annotations

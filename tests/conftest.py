@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Shared pytest fixtures for ContextLifecycle tests.
 
 Includes a venv guard: refuses to run unless invoked from inside this project's
@@ -34,8 +36,8 @@ if not _running_in_venv() and not os.environ.get("CUSTODIAN_SKIP_VENV_GUARD"):
     )
     sys.exit(2)
 
-from context_lifecycle.models.config import CLConfig
-from context_lifecycle.session.paths import SessionPaths
+from context_lifecycle.models.config import CLConfig  # noqa: E402  (after venv guard)
+from context_lifecycle.session.paths import SessionPaths  # noqa: E402
 
 
 @pytest.fixture

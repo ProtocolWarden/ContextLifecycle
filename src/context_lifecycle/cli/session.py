@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """`cl session` subcommands.
 
 Exit codes (per ADR 0002 P0.2):
@@ -13,7 +15,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -21,11 +22,9 @@ import typer
 
 from context_lifecycle.errors import (
     AmbiguousAnchor,
-    AnchorInvalid,
     AnchorPrerequisitesMissing,
     DirtyAnchor,
     ManifestNotFound,
-    SessionNotStarted,
 )
 from context_lifecycle.session.anchor import (
     ENV_VAR as ANCHOR_ENV,
