@@ -61,3 +61,31 @@ def peek_cmd(
     data = lifecycle.peek(_load_json(work_item))
     if data is not None:
         typer.echo(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+@app.command("init")
+def init_cmd(
+    repo: Path = typer.Option(
+        Path("."), "--repo", help="Target repo root to scaffold into (default: cwd)."
+    ),
+) -> None:
+    """Scaffold the context-injection engine + state into a repo (idempotent).
+
+    Copies the engine into ``<repo>/.context/.engine/`` (refreshed each run) and
+    creates ``routes.yaml`` / ``docs/inject/`` / ``.context/knowledge/`` only when
+    absent. Re-runnable during provisioning; never clobbers authored routes/docs.
+    """
+    from context_lifecycle.context_engine.scaffold import init_context
+
+    report = init_context(repo.resolve())
+    for rel in report.created:
+        typer.echo(f"  created   {rel}")
+    for rel in report.refreshed:
+        typer.echo(f"  refreshed {rel}")
+    for rel in report.skipped:
+        typer.echo(f"  kept      {rel}")
+    typer.echo(
+        f"cl context init: {len(report.created)} created, "
+        f"{len(report.refreshed)} refreshed, {len(report.skipped)} kept "
+        f"in {repo.resolve()}"
+    )
