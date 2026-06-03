@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Public Python API for dispatcher integration (ADR 0002 P4).
 
 Three functions OC's dispatcher (and any future dispatcher) wraps around

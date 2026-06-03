@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """`cl hook` subcommands. Wraps decision functions with stdin/stdout I/O.
 
 Exit contract (Claude Code hook protocol):

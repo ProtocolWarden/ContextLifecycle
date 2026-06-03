@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Parity tests for evaluate_pre_tool_use against the bash hook's decision tree."""
 
 from __future__ import annotations

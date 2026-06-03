@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """CL_ANCHOR resolution + validation.
 
 Anchor inference (no MANIFEST arg) and name-based lookup ("PlatformManifest")

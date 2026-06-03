@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Tests for the public lifecycle API (ADR 0002 P4)."""
 
 from __future__ import annotations

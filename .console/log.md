@@ -196,3 +196,7 @@ Moved the context-injection engine from its PlatformManifest prototype home (.co
 ## 2026-06-03 — Make CL CI green (venv guard skip + SPDX on 2 pre-existing files)
 
 The red-since-5/30 CI had two more pre-existing breakages beyond ruff: (1) the Test (pytest) job ran pytest outside the repo .venv, so conftest's venv guard exit-2'd every run — fixed by setting CUSTODIAN_SKIP_VENV_GUARD=1 on the CI test step (matches PlatformManifest's ci.yml); (2) License headers failed on two pre-existing files missing SPDX (adapters/claude/hooks/tests/validate_examples.py, src/context_lifecycle/__init__.py) — added headers. With these + the ruff cleanup, CL CI goes green for the first time since the workflow was added.
+
+## 2026-06-03 — Add SPDX headers to all source files (license-headers CI debt)
+
+The License headers CI job had been red since 5/30 on 36 pre-existing .py files lacking SPDX-License-Identifier (most of CL's existing src + tests). Added the standard AGPL SPDX + Copyright header to all of them (after shebang where present). Purely mechanical; ruff + 227 tests still green. With this, all three CI jobs (ruff, pytest, license) pass — CL CI green for the first time since the workflow landed.

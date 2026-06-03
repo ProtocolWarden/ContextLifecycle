@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """InvestigationCapsule — mirrors .context/schemas/investigation_capsule.yaml."""
 
 from __future__ import annotations

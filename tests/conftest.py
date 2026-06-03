@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Shared pytest fixtures for ContextLifecycle tests.
 
 Includes a venv guard: refuses to run unless invoked from inside this project's

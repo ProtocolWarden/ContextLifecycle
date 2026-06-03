@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """Stop hook decision logic. Port of adapters/claude/hooks/stop.sh.
 
 Enforces a LoopCheckpoint was written during this session. Resolution:
