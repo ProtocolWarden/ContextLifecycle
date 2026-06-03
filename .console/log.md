@@ -184,3 +184,7 @@ _Free-form scratch. Clear periodically — old entries can be deleted once no lo
 
 - Added `cl context hydrate|capture|peek` (cli/context.py) wrapping lifecycle.hydrate/capture/peek, so non-hook CLIs (aider; codex until a native plugin) integrate at session edges. JSON args accept literal/@file/stdin. Tests: tests/test_context_cli.py (7). cli/context.py added to T1/T6/T7 shim exclusions (Typer wiring; _load_json unit-tested, commands via CliRunner).
 - NOTE: codex native per-tool plugin deferred — codex hooks are a plugin (post-cutoff format); codex uses session-boundary for now (decision-compliant fallback).
+
+## 2026-06-03 — Clear pre-existing ruff debt blocking CI
+
+CL main CI has been red since 2026-05-30 on `ruff check .` (10 errors: unused imports in cli/hook.py, cli/session.py, and several test files; 2 E402 in conftest.py). Autofixed the unused imports; conftest's two imports are intentionally after the venv guard, so marked `# noqa: E402`. Pure lint cleanup, no behavior change — unblocks a green CI for the context-engine productionization PR.

@@ -34,8 +34,8 @@ if not _running_in_venv() and not os.environ.get("CUSTODIAN_SKIP_VENV_GUARD"):
     )
     sys.exit(2)
 
-from context_lifecycle.models.config import CLConfig
-from context_lifecycle.session.paths import SessionPaths
+from context_lifecycle.models.config import CLConfig  # noqa: E402  (after venv guard)
+from context_lifecycle.session.paths import SessionPaths  # noqa: E402
 
 
 @pytest.fixture

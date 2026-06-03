@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from context_lifecycle.hooks.decisions import Decision
 from context_lifecycle.hooks.pre_tool_use import HookInput, evaluate_pre_tool_use

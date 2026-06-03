@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 from context_lifecycle.hooks.stop import StopReport, evaluate_stop
 from context_lifecycle.models.config import CLConfig

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 
 from context_lifecycle.session.paths import SessionPaths, archived_root
 

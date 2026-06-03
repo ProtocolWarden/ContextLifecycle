@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -21,11 +20,9 @@ import typer
 
 from context_lifecycle.errors import (
     AmbiguousAnchor,
-    AnchorInvalid,
     AnchorPrerequisitesMissing,
     DirtyAnchor,
     ManifestNotFound,
-    SessionNotStarted,
 )
 from context_lifecycle.session.anchor import (
     ENV_VAR as ANCHOR_ENV,
