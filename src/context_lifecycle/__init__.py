@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 ProtocolWarden
 """ContextLifecycle — cognition lifecycle schemas, I/O, policy enforcement."""
 
 from context_lifecycle.errors import (
