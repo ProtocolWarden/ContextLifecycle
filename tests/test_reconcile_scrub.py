@@ -61,6 +61,13 @@ def test_changing_one_config_changes_detection_everywhere(tmp_path, monkeypatch)
 def test_no_source_yields_empty_vocab(tmp_path, monkeypatch):
     monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
     monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    # Also disable the RepoGraph-registry fallback so "no source" is genuinely
+    # no source (otherwise a machine with a registered private manifest resolves
+    # a real artifact). Patch the function _artifact_path imports lazily.
+    monkeypatch.setattr(
+        "context_lifecycle.reconcile.privacy._discover_via_repograph",
+        lambda: None,
+    )
     vocab = load_scrub_vocabulary()
     assert vocab.is_empty()
 

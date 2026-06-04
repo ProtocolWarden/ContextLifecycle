@@ -25,23 +25,37 @@ class PrivateArchiveUnavailable(RuntimeError):
 
 
 def _discover_via_repograph() -> Path | None:
-    """Find a registered private-manifest repo root via RepoGraph, if installed."""
+    """Find a registered private-manifest repo root via RepoGraph, if installed.
+
+    Uses RepoGraph's real registry API: ``Registry.load().manifests`` is the
+    list of registered manifest-repo roots, and ``discover_all_manifest_yamls``
+    returns every manifest YAML a root hosts (a private repo may host nested
+    per-project manifests, e.g. ``manifests/<project>/private_manifest.yaml``).
+    A root is *private* when any of its manifest YAMLs is named
+    ``private_manifest*`` — matched on the YAML basename, never a hardcoded repo
+    name (I2).
+    """
     try:
-        from repograph import Registry, discover_manifest_yaml  # type: ignore[import-not-found]
+        from repograph import Registry  # type: ignore[import-not-found]
+        from repograph.registry import (  # type: ignore[import-not-found]
+            discover_all_manifest_yamls,
+        )
     except ImportError:
         return None
     try:
         registry = Registry.load()
     except Exception:  # noqa: BLE001 - discovery is best-effort
         return None
-    for root in registry.resolved_paths():
-        manifest = discover_manifest_yaml(root)
-        if manifest is None:
+    for root in registry.manifests:
+        root = Path(root).expanduser()
+        if not root.is_dir():
             continue
-        # A private manifest is recognised by its discovered YAML basename — we
-        # never match on a hardcoded repo name (I2).
-        if manifest.name.startswith("private_manifest"):
-            return root
+        try:
+            yamls = discover_all_manifest_yamls(root)
+        except Exception:  # noqa: BLE001 - per-root discovery is best-effort
+            continue
+        if any(y.name.startswith("private_manifest") for y in yamls):
+            return root.resolve()
     return None
 
 
