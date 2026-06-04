@@ -102,8 +102,8 @@ def _artifact_path() -> Path | None:
 def _derive_abbreviations(names: Iterable[str]) -> list[str]:
     """Derive word-boundary abbreviations from CamelCase forbidden names.
 
-    Spec §1 mandates a bare word-boundary alias (e.g. ``VF`` for
-    ``VideoFoundry``) even though the artifact lists only the full
+    Spec §1 mandates a bare word-boundary alias (e.g. ``AB`` for a
+    name like ``AlphaBravo``) even though the artifact lists only the full
     CamelCase / ``snake_case`` forms. The alias is the upper-case
     initials of a multi-word CamelCase name; it is *derived* so the
     artifact stays the single source of truth (AC1) — the same
