@@ -34,6 +34,10 @@ class IndexResult:
     public_rows: list[RepoRow] = field(default_factory=list)
     private_count: int = 0
     warnings: list[str] = field(default_factory=list)
+    # Public repos in the manifest with no prune worksheet — reconciled with
+    # nothing to prune (enforce-only). Listed so the dashboard reflects the
+    # whole public fleet, not only repos that went through a prune.
+    enforce_only: list[str] = field(default_factory=list)
 
 
 def load_public_repo_names(manifest_yaml: Path) -> set[str]:
@@ -101,6 +105,8 @@ def build_index(
         row.prune_ready = chk.green
         result.public_rows.append(row)
         result.warnings.extend(f"{ws.repo}: {w}" for w in ws.warnings)
+    worksheet_repos = {row.repo for row in result.public_rows}
+    result.enforce_only = sorted(public_names - worksheet_repos)
     return result
 
 
@@ -124,6 +130,15 @@ def render_index(result: IndexResult) -> str:
         )
     if not result.public_rows:
         lines.append("| _(none)_ | | | | | |")
+    lines += [
+        "",
+        "## Enforce-only public repos (reconciled, no prune worksheet)",
+        "",
+    ]
+    if result.enforce_only:
+        lines.append(", ".join(result.enforce_only))
+    else:
+        lines.append("_(none)_")
     lines += [
         "",
         "## Private repos",
