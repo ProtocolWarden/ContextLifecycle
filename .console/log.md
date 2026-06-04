@@ -18,9 +18,9 @@ Picks up `can_anchor_host` alias-resolution from RepoGraph v0.2.1. Operators may
 
 E2E anchor flow test caught: `capture(result={"repos_touched": [...]})` was silently skipping RepoGraph authorization because `_extract_repos` only recognized `repos`, `targets`, `target_repos`. The cross-boundary write (PM-anchored session → private-owned repo) wrote successfully when it should have been blocked.
 
-Added `repos_touched` to the recognized list. All 90 tests still pass; e2e verified that `repos_touched: ["VideoFoundry"]` from a PM anchor now raises BoundaryViolation.
+Added `repos_touched` to the recognized list. All 90 tests still pass; e2e verified that `repos_touched: ["<a-private-downstream-repo>"]` from a PM anchor now raises BoundaryViolation.
 
-Follow-up not addressed here: `RepoGraph.can_anchor_host` matches on canonical_name (`VideoFoundry`) and rejects the snake_case repo key (`videofoundry`) as "unregistered". Both forms should be acceptable for UX. Filed for a separate change in RepoGraph.
+Follow-up not addressed here: `RepoGraph.can_anchor_host` matches on a repo's canonical_name and rejects its snake_case repo key as "unregistered". Both forms should be acceptable for UX. Filed for a separate change in RepoGraph.
 
 ## 2026-05-22 — Pin repograph to git tag v0.2.0 (was file:// local pin)
 
@@ -178,7 +178,7 @@ _Free-form scratch. Clear periodically — old entries can be deleted once no lo
 ## 2026-05-24 — Tracked adapter installer (Phase 1 of multi-CLI CL integration)
 
 - Added adapters/install.sh (committed, idempotent, re-syncs drift): copies the canonical claude hooks into a repo .claude/hooks/ and merges the hook wiring into settings.json (preserving other keys). Fixes the divergent per-repo hook copies + the untracked-settings problem. --cli flag is extensible; codex/aider skip gracefully until their adapters land (phase 2/3). Test: adapters/install_test.sh (6/6).
-- Foundation for: codex adapter (plugin/MCP), aider adapter (session-boundary), and rewiring OC panes + OC/VF loops to anchor via `cl session start` (= owning manifest, RepoGraph-resolved). RepoGraph already provides repo→manifest (repo_owner map).
+- Foundation for: codex adapter (plugin/MCP), aider adapter (session-boundary), and rewiring OC panes + downstream loops to anchor via `cl session start` (= owning manifest, RepoGraph-resolved). RepoGraph already provides repo→manifest (repo_owner map).
 
 ## 2026-05-24 — `cl context` CLI (Phase 2: session-boundary cognition)
 
@@ -200,3 +200,7 @@ The red-since-5/30 CI had two more pre-existing breakages beyond ruff: (1) the T
 ## 2026-06-03 — Add SPDX headers to all source files (license-headers CI debt)
 
 The License headers CI job had been red since 5/30 on 36 pre-existing .py files lacking SPDX-License-Identifier (most of CL's existing src + tests). Added the standard AGPL SPDX + Copyright header to all of them (after shebang where present). Purely mechanical; ruff + 227 tests still green. With this, all three CI jobs (ruff, pytest, license) pass — CL CI green for the first time since the workflow landed.
+
+## 2026-06-04 — Add `cl reconcile` (Layer B of the .console reconciliation spec)
+
+New `src/context_lifecycle/reconcile/` package + `cl reconcile` Typer group: `check` (consolidate-before-prune gate — blocks if a done item lacks an existing doc, or any field carries a scrub-target name), `prune` (move completed history to the private side via $PRIVATE_MANIFEST_DIR/discovery, trim source to active+recent+pointer, one CHANGELOG line per item; dry-run default, idempotent, refuses unless check green), `index` (dashboard; public repos itemized, private as opaque count). Scrub vocabulary read from the single boundary-artifact source — no hardcoded private-manifest literal in source (env/discovery only). 29 tests. Custodian config: c13-allowed the two env-readers and T-class-exempted the package (CL uses flat tests/, not the mirrored layout T7 expects — same precedent as the engine/CLI shims). Also scrubbed two pre-existing private-name refs out of this log (CL is public; would trip the new R2). Built via the console-reconciliation workflow; reviewed + custodian-cleaned by hand (sole remaining finding is the pre-existing environmental B2 boundary-artifact-presence check).

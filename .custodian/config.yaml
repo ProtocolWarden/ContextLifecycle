@@ -24,6 +24,12 @@ audit:
     - "src/context_lifecycle/session/anchor.py"
     - "src/context_lifecycle/session/ids.py"
     - "src/context_lifecycle/context_engine/prune.py"
+    # reconcile/{privacy,scrub} resolve the private-manifest dir + boundary
+    # artifact via env ($PRIVATE_MANIFEST_DIR / $REPOGRAPH_BOUNDARY_ARTIFACT_FILE)
+    # by design — env IS the discovery layer here (spec forbids a hardcoded
+    # private-manifest literal in source). This is the config/entry layer.
+    - "src/context_lifecycle/reconcile/privacy.py"
+    - "src/context_lifecycle/reconcile/scrub.py"
 
   exclude_paths:
     # ----------------------------------------------------------------------
@@ -54,6 +60,12 @@ audit:
     # tests; the real logic (_load_json) is unit-tested directly. The vendored
     # engine modules are loaded by path (not by-name import), so T1/T6/T7 (which
     # key on by-name imports + parallel test files) don't apply.
+    # reconcile/*: the cl reconcile package is exercised by tests/test_reconcile_*.py
+    # (29 tests on temp fixtures: worksheet/scrub/check/prune/index/cli). CL's test
+    # convention is flat tests/test_<topic>.py, not the mirrored tests/unit/<pkg>/
+    # layout T7 prints as its expected path; the package modules are imported through
+    # the topic test files + the CLI, not by per-module name. cli/reconcile.py is a
+    # thin Typer shim (invoked by CLI string), like cli/main.py + cli/context.py.
     T1: &cli_shims
       - src/context_lifecycle/errors.py
       - src/context_lifecycle/cli/main.py
@@ -64,5 +76,13 @@ audit:
       - src/context_lifecycle/context_engine/distill.py
       - src/context_lifecycle/context_engine/campaign.py
       - src/context_lifecycle/context_engine/prune.py
+      - src/context_lifecycle/reconcile/check.py
+      - src/context_lifecycle/reconcile/prune.py
+      - src/context_lifecycle/reconcile/index.py
+      - src/context_lifecycle/reconcile/worksheet.py
+      - src/context_lifecycle/reconcile/scrub.py
+      - src/context_lifecycle/reconcile/privacy.py
+      - src/context_lifecycle/reconcile/mdsections.py
+      - src/context_lifecycle/cli/reconcile.py
     T6: *cli_shims
     T7: *cli_shims
