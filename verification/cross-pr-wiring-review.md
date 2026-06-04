@@ -93,7 +93,7 @@ The workspace-root `~/Documents/GitHub/.context/` scratch space has been
 adapter hooks now hard-require `CL_ANCHOR` and resolve `.context/` under it,
 with **no CWD fallback** — so an un-anchored workspace-root context can no
 longer be created. Cross-repo coordination state belongs under the anchoring
-manifest's `.context/` (PrivateManifest hosts cognition; PlatformManifest is the
+manifest's `.context/` (the private-manifest repo hosts cognition; PlatformManifest is the
 ecosystem map), which is git-tracked like `.console/`.
 
 ---
