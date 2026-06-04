@@ -1,4 +1,12 @@
 # Log
+## 2026-06-04 — chore: reconcile .console — enable R1/R2 enforcement
+
+Enforce-only reconciliation pass (repo already clean + under budget).
+
+- `git grep` for scrub-target identifiers in tracked `.console`/`docs` returns empty (leak-free).
+- `.custodian/config.yaml`: added `audit.reconcile_enforce: true` so R1/R2 enforce on this reconciled repo.
+- Verified: `cl reconcile check` GREEN; custodian audit reports R1 count=0 and R2 count=0 (log.md 210 lines < 400 budget); reconcile tests pass.
+
 ## 2026-05-23 — chore: onboard Custodian (config, hooks, tests)
 
 Brought the repo under the Custodian guard; drove the audit from 88 findings to 0 (clean).
