@@ -68,14 +68,30 @@ class ScrubVocabulary:
 
 
 def _artifact_path() -> Path | None:
-    """Resolve the boundary artifact path from env, then private-manifest discovery."""
+    """Resolve the boundary artifact path.
+
+    Order: explicit ``$REPOGRAPH_BOUNDARY_ARTIFACT_FILE`` → ``$PRIVATE_MANIFEST_DIR``
+    + discovery → RepoGraph-registry-discovered private root + discovery. The last
+    fallback lets ``cl reconcile`` run with no env vars set (the common fan-out
+    case) by reusing the same private-root resolution as the archive destination.
+    """
     explicit = os.environ.get(_ARTIFACT_FILE_ENV, "").strip()
     if explicit:
         p = Path(explicit).expanduser()
         return p if p.is_file() else None
-    root = os.environ.get(_PRIVATE_MANIFEST_ENV, "").strip()
-    if root:
-        base = Path(root).expanduser()
+
+    roots: list[Path] = []
+    env_root = os.environ.get(_PRIVATE_MANIFEST_ENV, "").strip()
+    if env_root:
+        roots.append(Path(env_root).expanduser())
+    else:
+        # No env override → reuse the registry discovery used for the archive.
+        from context_lifecycle.reconcile.privacy import _discover_via_repograph
+        discovered = _discover_via_repograph()
+        if discovered is not None:
+            roots.append(discovered)
+
+    for base in roots:
         for rel in _ARTIFACT_DISCOVERY:
             candidate = base / rel
             if candidate.is_file():
