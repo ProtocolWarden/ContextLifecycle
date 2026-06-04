@@ -15,6 +15,9 @@ privacy:
 # Audit: per-detector exclusions
 # ---------------------------------------------------------------------------
 audit:
+  # This repo is reconciled + clean (.console slim, leak-free) — flip R1/R2 on to enforce.
+  reconcile_enforce: true
+
   # session/anchor + cli/session read CL_ANCHOR / CL_SESSION_ID / SHELL from the
   # environment in the CLI layer; this *is* the config/entry layer for those vars.
   # context_engine/prune.py reads CL_SESSION_ID standalone — it ships verbatim
