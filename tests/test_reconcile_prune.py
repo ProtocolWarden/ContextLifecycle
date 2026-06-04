@@ -161,3 +161,37 @@ def test_prune_refuses_when_not_green(tmp_path, monkeypatch):
     )
     with pytest.raises(PruneRefused):
         build_plan(repo, private_root=tmp_path / "priv")
+
+
+def test_changelog_one_line_per_item_not_per_section(tmp_path, monkeypatch):
+    """An item whose keywords match several log sections yields ONE CHANGELOG
+    line (regression guard for the per-section duplication the OC run hit)."""
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    repo = tmp_path / "MultiMatch"
+    console = repo / ".console"
+    console.mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "d.md").write_text("d", encoding="utf-8")
+    (console / "reconcile.yaml").write_text(
+        "repo: MultiMatch\nitems:\n"
+        "  - id: coverage-adapter\n"
+        "    title: 'Coverage adapter'\n"
+        "    status: done\n"
+        "    owner: MultiMatch\n"
+        "    doc: [docs/d.md]\n",
+        encoding="utf-8",
+    )
+    # Three separate log sections that all match the 'coverage adapter' keywords.
+    (console / "log.md").write_text(
+        "# Log\n\n"
+        "## 2026-05-01 — coverage adapter landed\n\nbody\n\n"
+        "## 2026-05-02 — coverage adapter follow-up\n\nbody\n\n"
+        "## 2026-05-03 — more coverage adapter polish\n\nbody\n\n",
+        encoding="utf-8",
+    )
+    plan = build_plan(repo, recent_n=0, private_root=tmp_path / "Priv")
+    # Multiple sections claimed, but exactly one CHANGELOG line for the item.
+    assert len([m for m in plan.moves if m.source == "log.md"]) >= 2
+    assert len(plan.changelog_lines) == 1
+    assert "coverage-adapter" in plan.changelog_lines[0]

@@ -131,13 +131,18 @@ def build_plan(
         claimed: set[int] = set()
         for item in owned_done:
             kws = _item_keywords(item)
+            item_claimed = False
             for idx, sec in enumerate(sections):
                 if idx in claimed:
                     continue
                 if sec.heading and _section_matches_item(sec, kws):
                     claimed.add(idx)
                     plan.moves.append(PlannedMove("log.md", sec.heading, item.id))
-                    plan.changelog_lines.append(_changelog_entry(item, cutoff, vocabulary))
+                    item_claimed = True
+            # One CHANGELOG line per ITEM (not per matched section) — an item
+            # whose keywords match several log sections still ships one entry.
+            if item_claimed:
+                plan.changelog_lines.append(_changelog_entry(item, cutoff, vocabulary))
 
     # --- backlog.md: completed ("Done"/"Done (...)") sections are
     # archive-eligible (active In Progress / Up Next / Recent stay) ------
