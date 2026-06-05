@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from context_lifecycle.reconcile.privacy import is_private_root
 from context_lifecycle.reconcile.scrub import ScrubVocabulary, load_scrub_vocabulary
 from context_lifecycle.reconcile.worksheet import (
     ReconcileItem,
@@ -84,12 +85,13 @@ def run_check(
     # A repo whose own name is a scrub target IS a private repo reconciling
     # itself — private names on private surfaces are not leaks (the boundary
     # protects PUBLIC surfaces), so the scrub gate is skipped. The DOC GAP
-    # gate still applies in full.
-    repo_is_private = bool(vocabulary.matches(ws.repo))
+    # gate still applies in full. The private-manifest repo itself is also
+    # private, but its name is deliberately public-safe — detect it by root.
+    repo_is_private = bool(vocabulary.matches(ws.repo)) or is_private_root(repo_root)
     if repo_is_private:
         result.warnings.append(
-            f"{ws.repo} is a private repo (its name is a scrub target) — "
-            "scrub-leak gate skipped (names are allowed on private surfaces)."
+            f"{ws.repo} is a private repo — scrub-leak gate skipped "
+            "(names are allowed on private surfaces)."
         )
 
     for item in ws.items:

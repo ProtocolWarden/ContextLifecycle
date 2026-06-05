@@ -120,3 +120,22 @@ def test_private_repo_doc_gap_still_gates(tmp_path, monkeypatch):
     result = run_check(tmp_path, vocab=vocab)
     assert not result.green
     assert any(g.item_id == "alpha" for g in result.doc_gaps)
+
+
+def test_private_manifest_root_skips_scrub_gate(tmp_path, monkeypatch):
+    """The private-manifest repo itself: name NOT in vocab, detected by root."""
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(tmp_path))
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    (tmp_path / "d.md").write_text("x", encoding="utf-8")
+    _ws(
+        tmp_path,
+        "repo: ManifestHost\n"
+        "items:\n"
+        f"  - id: alpha\n    title: 'registry rename for {SCRUB_NAME}'\n"
+        "    status: done\n    owner: ManifestHost\n    doc: [d.md]\n",
+    )
+    result = run_check(tmp_path, vocab=vocab)
+    assert result.green
+    assert result.scrub_hits == []
+    assert any("private repo" in w for w in result.warnings)

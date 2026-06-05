@@ -219,3 +219,11 @@ New `src/context_lifecycle/reconcile/` package + `cl reconcile` Typer group: `ch
 
 ## 2026-06-04 — reconcile: private-repo scrub exemption (self-name signal)
 Check/prune were public-repo-shaped: a private repo reconciling itself tripped the scrub gate on its own name, and prune would have genericized the repo's own name inside its own tree. New rule: a repo whose own name matches the scrub vocabulary IS a private repo → scrub-leak gate skipped (warning emitted), retained-content scrub + CHANGELOG genericization skipped. DOC GAP gate unchanged. Motivating case: the private downstream repo's 6.8k-line .console/log.md reconciliation.
+
+## 2026-06-04 — reconcile: detect the private-manifest repo itself as private
+Second private-signal: the private-manifest repo's own name is deliberately public-safe
+(never in the scrub vocabulary), so the self-name exemption (#20) didn't fire when
+reconciling it — and prune would have scrubbed OTHER private repos' names out of its
+retained .console, the one surface where those names are the point. New `is_private_root()`
+in privacy.py (repo root resolves to the private-manifest root) ORed into check/prune's
+private detection. Motivating case: reconciling the private-manifest repo's own .console.

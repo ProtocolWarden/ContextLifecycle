@@ -91,6 +91,21 @@ def resolve_private_root() -> Path:
     )
 
 
+def is_private_root(repo_root: Path) -> bool:
+    """True when ``repo_root`` IS the private-manifest repo itself.
+
+    The private-manifest repo's *name* is deliberately public-safe (it never
+    appears in the scrub vocabulary), so the self-name private signal used by
+    check/prune does not fire for it — yet it is the most private surface of
+    all: scrubbing private names out of its retained ``.console/`` would be
+    actively wrong. Best-effort: False when no private root can be resolved.
+    """
+    try:
+        return Path(repo_root).resolve() == resolve_private_root().resolve()
+    except PrivateArchiveUnavailable:
+        return False
+
+
 def archive_dir_for(repo: str, *, private_root: Path | None = None) -> Path:
     """Return ``<private-root>/archive/console/<repo>/`` (not created here)."""
     root = private_root if private_root is not None else resolve_private_root()

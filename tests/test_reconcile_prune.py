@@ -264,3 +264,45 @@ def test_public_repo_prune_still_scrubs(tmp_path, monkeypatch):
 
     retained = (repo / ".console" / "log.md").read_text(encoding="utf-8")
     assert SCRUB_NAME not in retained
+
+
+def test_private_manifest_root_prune_keeps_names(tmp_path, monkeypatch):
+    """Pruning the private-manifest repo itself never scrubs retained content."""
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    repo = tmp_path / "ManifestHost"
+    console = repo / ".console"
+    console.mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "design.md").write_text("design doc", encoding="utf-8")
+    (console / "reconcile.yaml").write_text(
+        "repo: ManifestHost\n"
+        "items:\n"
+        "  - id: registry-renames\n"
+        f"    title: 'Registry renames for {SCRUB_NAME}'\n"
+        "    status: done\n"
+        "    owner: ManifestHost\n"
+        "    doc: [docs/design.md]\n",
+        encoding="utf-8",
+    )
+    (console / "log.md").write_text(
+        "# Log\n\n"
+        f"## 2026-05-30 — registry renames shipped\n\nRenamed {SCRUB_NAME}.\n\n"
+        f"## 2026-05-29 — recent note\n\n{SCRUB_NAME} stays named here.\n\n",
+        encoding="utf-8",
+    )
+    (console / "backlog.md").write_text(
+        "# Backlog\n\n## In Progress\n\n- [ ] active\n\n## Done\n\n- [x] registry renames\n\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(repo))
+
+    plan = build_plan(repo, vocab=vocab, private_root=repo)
+    apply_plan(repo, plan, vocab=vocab)
+
+    retained = (repo / ".console" / "log.md").read_text(encoding="utf-8")
+    retained += (repo / ".console" / "backlog.md").read_text(encoding="utf-8")
+    changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert SCRUB_NAME in retained
+    assert SCRUB_NAME in changelog
+    assert "a private downstream repo" not in retained + changelog
