@@ -83,3 +83,40 @@ def test_ac7_cross_repo_listed_not_gated(tmp_path, monkeypatch):
     assert result.green
     assert [it.id for it in result.cross_repo] == ["beta"]
     assert result.doc_gaps == []
+
+
+# --- Private repo reconciling itself: scrub gate skipped --------------------
+
+
+def test_private_repo_self_name_skips_scrub_gate(tmp_path, monkeypatch):
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    (tmp_path / "d.md").write_text("x", encoding="utf-8")
+    # The repo's own name IS the scrub target — a private repo's worksheet.
+    _ws(
+        tmp_path,
+        f"repo: {SCRUB_NAME}\n"
+        "items:\n"
+        f"  - id: alpha\n    title: 'work inside {SCRUB_NAME}'\n"
+        f"    status: done\n    owner: {SCRUB_NAME}\n    doc: [d.md]\n",
+    )
+    result = run_check(tmp_path, vocab=vocab)
+    assert result.green
+    assert result.scrub_hits == []
+    assert any("private repo" in w for w in result.warnings)
+
+
+def test_private_repo_doc_gap_still_gates(tmp_path, monkeypatch):
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    _ws(
+        tmp_path,
+        f"repo: {SCRUB_NAME}\n"
+        "items:\n"
+        f"  - id: alpha\n    status: done\n    owner: {SCRUB_NAME}\n    doc: []\n",
+    )
+    result = run_check(tmp_path, vocab=vocab)
+    assert not result.green
+    assert any(g.item_id == "alpha" for g in result.doc_gaps)

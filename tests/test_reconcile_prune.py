@@ -195,3 +195,72 @@ def test_changelog_one_line_per_item_not_per_section(tmp_path, monkeypatch):
     assert len([m for m in plan.moves if m.source == "log.md"]) >= 2
     assert len(plan.changelog_lines) == 1
     assert "coverage-adapter" in plan.changelog_lines[0]
+
+
+# --- Private repo reconciling itself: retained content + CHANGELOG unscrubbed
+
+
+def _setup_private_repo(tmp_path) -> Path:
+    """A repo whose own name IS the scrub target (a private repo)."""
+    repo = tmp_path / SCRUB_NAME
+    console = repo / ".console"
+    console.mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "design.md").write_text("design doc", encoding="utf-8")
+    (console / "reconcile.yaml").write_text(
+        f"repo: {SCRUB_NAME}\n"
+        "items:\n"
+        "  - id: detectors-trio\n"
+        f"    title: 'Detectors trio in {SCRUB_NAME}'\n"
+        "    status: done\n"
+        f"    owner: {SCRUB_NAME}\n"
+        "    doc: [docs/design.md]\n",
+        encoding="utf-8",
+    )
+    log = (
+        "# Log\n\n"
+        f"## 2026-05-30 — detectors trio shipped\n\nDone inside {SCRUB_NAME}.\n\n"
+        f"## 2026-05-29 — recent note\n\n{SCRUB_NAME} keeps its own name.\n\n"
+    )
+    (console / "log.md").write_text(log, encoding="utf-8")
+    (console / "backlog.md").write_text(
+        f"# Backlog\n\n## In Progress\n\n- [ ] active in {SCRUB_NAME}\n\n"
+        "## Done\n\n- [x] detectors trio\n\n",
+        encoding="utf-8",
+    )
+    return repo
+
+
+def test_private_repo_prune_keeps_own_name(tmp_path, monkeypatch):
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    repo = _setup_private_repo(tmp_path)
+    private = tmp_path / "PrivateSide"
+
+    plan = build_plan(repo, vocab=vocab, private_root=private)
+    apply_plan(repo, plan, vocab=vocab)
+
+    # Retained .console content keeps the private repo's own name.
+    retained = (repo / ".console" / "log.md").read_text(encoding="utf-8")
+    retained += (repo / ".console" / "backlog.md").read_text(encoding="utf-8")
+    assert SCRUB_NAME in retained
+    assert "a private downstream repo" not in retained
+    # The CHANGELOG line keeps the name too.
+    changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert SCRUB_NAME in changelog
+    assert "a private downstream repo" not in changelog
+
+
+def test_public_repo_prune_still_scrubs(tmp_path, monkeypatch):
+    monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+    monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+    vocab = load_scrub_vocabulary(extra_names=[SCRUB_NAME])
+    repo = _setup_repo(tmp_path, scrub_in_log=True)
+    private = tmp_path / "PrivateSide"
+
+    plan = build_plan(repo, vocab=vocab, private_root=private)
+    apply_plan(repo, plan, vocab=vocab)
+
+    retained = (repo / ".console" / "log.md").read_text(encoding="utf-8")
+    assert SCRUB_NAME not in retained
