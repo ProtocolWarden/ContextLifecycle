@@ -25,7 +25,7 @@ from pathlib import Path
 
 from context_lifecycle.reconcile.check import CheckResult, run_check
 from context_lifecycle.reconcile.mdsections import Section, join_sections, split_sections
-from context_lifecycle.reconcile.privacy import archive_dir_for
+from context_lifecycle.reconcile.privacy import archive_dir_for, is_private_root
 from context_lifecycle.reconcile.scrub import ScrubVocabulary, load_scrub_vocabulary
 from context_lifecycle.reconcile.worksheet import ReconcileItem, Worksheet, load_worksheet
 
@@ -97,14 +97,17 @@ def _changelog_entry(item: ReconcileItem, cutoff: str, vocab: ScrubVocabulary, *
     return _scrub_line(raw, vocab) if scrub else raw
 
 
-def _repo_is_private(repo: str, vocab: ScrubVocabulary) -> bool:
-    """A repo whose own name is a scrub target is a private repo.
+def _repo_is_private(repo: str, vocab: ScrubVocabulary, repo_root: Path | None = None) -> bool:
+    """A repo whose own name is a scrub target — or which IS the
+    private-manifest root — is a private repo.
 
     Inside a private repo, private names are not leaks (the boundary protects
     public surfaces) — so genericizing its CHANGELOG lines or retained
     ``.console/`` content would destroy meaning, not protect anything.
     """
-    return bool(vocab.matches(repo))
+    if vocab.matches(repo):
+        return True
+    return repo_root is not None and is_private_root(repo_root)
 
 
 def build_plan(
@@ -131,7 +134,7 @@ def build_plan(
     cutoff = cutoff or date.today().isoformat()
     archive_dir = archive_dir_for(ws.repo, private_root=private_root)
     plan = PrunePlan(repo=ws.repo, cutoff=cutoff, archive_dir=archive_dir)
-    scrub_records = not _repo_is_private(ws.repo, vocabulary)
+    scrub_records = not _repo_is_private(ws.repo, vocabulary, repo_root)
 
     owned_done = [it for it in ws.items if it.is_done and not it.is_cross_repo(ws.repo)]
 
@@ -212,7 +215,7 @@ def apply_plan(
     vocabulary = vocab if vocab is not None else load_scrub_vocabulary()
     # Private repos keep their own names — scrubbing retained content there
     # would destroy meaning (see _repo_is_private).
-    scrub_retained = not _repo_is_private(plan.repo, vocabulary)
+    scrub_retained = not _repo_is_private(plan.repo, vocabulary, repo_root)
     if plan.is_noop:
         # Even with nothing to archive, ensure retained content is R2-clean.
         if scrub_retained:
