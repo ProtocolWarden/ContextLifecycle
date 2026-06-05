@@ -81,9 +81,21 @@ def run_check(
     vocabulary = vocab if vocab is not None else load_scrub_vocabulary()
     result = CheckResult(repo=ws.repo, warnings=list(ws.warnings))
 
+    # A repo whose own name is a scrub target IS a private repo reconciling
+    # itself — private names on private surfaces are not leaks (the boundary
+    # protects PUBLIC surfaces), so the scrub gate is skipped. The DOC GAP
+    # gate still applies in full.
+    repo_is_private = bool(vocabulary.matches(ws.repo))
+    if repo_is_private:
+        result.warnings.append(
+            f"{ws.repo} is a private repo (its name is a scrub target) — "
+            "scrub-leak gate skipped (names are allowed on private surfaces)."
+        )
+
     for item in ws.items:
-        # (b) scrub-target leak in any field — applies to every item.
-        result.scrub_hits.extend(_scan_fields(item, vocabulary))
+        # (b) scrub-target leak in any field — public repos only (see above).
+        if not repo_is_private:
+            result.scrub_hits.extend(_scan_fields(item, vocabulary))
         # (a) DOC GAP — only for done items owned by this repo (the archive-eligible
         # set the gate protects; cross-repo items are routed, not gated).
         if item.is_done and not item.is_cross_repo(ws.repo):

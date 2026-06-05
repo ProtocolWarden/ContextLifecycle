@@ -92,9 +92,19 @@ def _scrub_line(text: str, vocab: ScrubVocabulary) -> str:
     return vocab.redact(text, "a private downstream repo")
 
 
-def _changelog_entry(item: ReconcileItem, cutoff: str, vocab: ScrubVocabulary) -> str:
+def _changelog_entry(item: ReconcileItem, cutoff: str, vocab: ScrubVocabulary, *, scrub: bool = True) -> str:
     raw = f"- {cutoff}: reconciled `{item.id}` — {item.title} (history archived)."
-    return _scrub_line(raw, vocab)
+    return _scrub_line(raw, vocab) if scrub else raw
+
+
+def _repo_is_private(repo: str, vocab: ScrubVocabulary) -> bool:
+    """A repo whose own name is a scrub target is a private repo.
+
+    Inside a private repo, private names are not leaks (the boundary protects
+    public surfaces) — so genericizing its CHANGELOG lines or retained
+    ``.console/`` content would destroy meaning, not protect anything.
+    """
+    return bool(vocab.matches(repo))
 
 
 def build_plan(
@@ -121,6 +131,7 @@ def build_plan(
     cutoff = cutoff or date.today().isoformat()
     archive_dir = archive_dir_for(ws.repo, private_root=private_root)
     plan = PrunePlan(repo=ws.repo, cutoff=cutoff, archive_dir=archive_dir)
+    scrub_records = not _repo_is_private(ws.repo, vocabulary)
 
     owned_done = [it for it in ws.items if it.is_done and not it.is_cross_repo(ws.repo)]
 
@@ -142,7 +153,9 @@ def build_plan(
             # One CHANGELOG line per ITEM (not per matched section) — an item
             # whose keywords match several log sections still ships one entry.
             if item_claimed:
-                plan.changelog_lines.append(_changelog_entry(item, cutoff, vocabulary))
+                plan.changelog_lines.append(
+                    _changelog_entry(item, cutoff, vocabulary, scrub=scrub_records)
+                )
 
     # --- backlog.md: completed ("Done"/"Done (...)") sections are
     # archive-eligible (active In Progress / Up Next / Recent stay) ------
@@ -197,9 +210,13 @@ def apply_plan(
     """
     repo_root = Path(repo_root)
     vocabulary = vocab if vocab is not None else load_scrub_vocabulary()
+    # Private repos keep their own names — scrubbing retained content there
+    # would destroy meaning (see _repo_is_private).
+    scrub_retained = not _repo_is_private(plan.repo, vocabulary)
     if plan.is_noop:
         # Even with nothing to archive, ensure retained content is R2-clean.
-        _scrub_retained(repo_root, vocabulary)
+        if scrub_retained:
+            _scrub_retained(repo_root, vocabulary)
         plan.applied = True
         return plan
 
@@ -240,8 +257,9 @@ def apply_plan(
     if plan.changelog_lines:
         _append_changelog(repo_root / CHANGELOG_RELPATH, plan.changelog_lines)
 
-    # --- scrub retained tracked content (R2-clean; AC10) -----------------
-    _scrub_retained(repo_root, vocabulary)
+    # --- scrub retained tracked content (R2-clean; AC10; public repos) ---
+    if scrub_retained:
+        _scrub_retained(repo_root, vocabulary)
 
     plan.applied = True
     return plan
