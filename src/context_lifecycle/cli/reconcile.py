@@ -20,6 +20,7 @@ from context_lifecycle.reconcile.index import (
     load_public_repo_names,
     render_index,
 )
+from context_lifecycle.reconcile.lock import PruneLockHeld
 from context_lifecycle.reconcile.prune import (
     DEFAULT_RECENT_N,
     PruneRefused,
@@ -69,7 +70,11 @@ def prune_cmd(
         raise typer.Exit(code=2)
 
     if apply:
-        plan = apply_plan(repo_root, plan, recent_n=recent_n)
+        try:
+            plan = apply_plan(repo_root, plan, recent_n=recent_n)
+        except PruneLockHeld as e:
+            typer.echo(f"cl reconcile prune: {e}", err=True)
+            raise typer.Exit(code=3)
     typer.echo(format_plan(plan, applied=apply))
 
 
@@ -84,15 +89,36 @@ def index_cmd(
     out: Path = typer.Option(
         None, "--out", help="Write dashboard here instead of stdout."
     ),
+    check: bool = typer.Option(
+        False,
+        "--check",
+        help="With --out: don't write — exit non-zero if the file is missing or stale.",
+    ),
 ) -> None:
     """Generate the status dashboard. Public repos itemized; private repos as an opaque count."""
+    if check and out is None:
+        typer.echo("cl reconcile index: --check requires --out", err=True)
+        raise typer.Exit(code=2)
     public = load_public_repo_names(manifest.resolve())
     result = build_index(clones_root.resolve(), public)
     rendered = render_index(result)
     if out is not None:
         out = out.resolve()
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(rendered, encoding="utf-8")
-        typer.echo(f"cl reconcile index: wrote {out}")
+        if check:
+            current = out.read_text(encoding="utf-8") if out.is_file() else None
+            if current == rendered:
+                typer.echo(f"cl reconcile index: {out} is up to date")
+            else:
+                state = "missing" if current is None else "stale"
+                typer.echo(
+                    f"cl reconcile index: {out} is {state} — regenerate with "
+                    f"`cl reconcile index --out {out} ...`",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+        else:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(rendered, encoding="utf-8")
+            typer.echo(f"cl reconcile index: wrote {out}")
     else:
         typer.echo(rendered)

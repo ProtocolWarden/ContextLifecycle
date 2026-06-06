@@ -1,4 +1,25 @@
 # Log
+## 2026-06-06 — fix: prune apply lock + index --check freshness gate
+
+Two findings from the PlatformManifest spec audit (PM #68 train) land here:
+
+- **Prune lock**: `apply_plan` now takes an exclusive flock on
+  `.console/.reconcile.lock` (new `reconcile/lock.py`). Two concurrent
+  `prune --apply` runs on the same repo could interleave the archive append and
+  source trim (idempotency-by-heading races its own read); the second now fails
+  closed (`PruneLockHeld`, CLI exit 3). Cross-host stays serialized by git —
+  the lock closes the same-host window where no merge point exists.
+- **Index freshness**: `cl reconcile index --check --out <path>` compares the
+  rendered dashboard to the file and exits 1 on missing/stale (2 if --out
+  absent). PM's `console-reconciliation-status.md` claims "generated — do not
+  hand-edit" but was hand-committed; this gives hooks/CI a primitive to enforce
+  the claim. Wiring the PM-side hook is a PM follow-up.
+
+Custodian guard caught two LOWs pre-push: lock tests moved to a dedicated
+tests/test_reconcile_lock.py (flat-convention parallel test; lock.py added to
+the reconcile T1/T6/T7 exclude anchor like its siblings) and the released-lock
+test gained real assertions. 6 new tests; suite 269 pass; ruff clean.
+
 ## 2026-06-04 — chore: reconcile .console — enable R1/R2 enforcement
 
 Enforce-only reconciliation pass (repo already clean + under budget).

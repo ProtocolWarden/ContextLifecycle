@@ -24,6 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from context_lifecycle.reconcile.check import CheckResult, run_check
+from context_lifecycle.reconcile.lock import reconcile_lock
 from context_lifecycle.reconcile.mdsections import Section, join_sections, split_sections
 from context_lifecycle.reconcile.privacy import archive_dir_for, is_private_root
 from context_lifecycle.reconcile.scrub import ScrubVocabulary, load_scrub_vocabulary
@@ -210,8 +211,24 @@ def apply_plan(
     (genericized) as a final step so the post-prune tracked ``.console/`` is
     R2-clean (spec §5.3 / AC10). Scrubbing already-clean text is a no-op, so a
     second ``--apply`` stays idempotent.
+
+    Mutation is serialized per repo via an exclusive ``.console/.reconcile.lock``
+    (raises :class:`~context_lifecycle.reconcile.lock.PruneLockHeld` if another
+    apply holds it) — see ``reconcile.lock`` for the same-host vs cross-host
+    rationale.
     """
     repo_root = Path(repo_root)
+    with reconcile_lock(repo_root):
+        return _apply_plan_locked(repo_root, plan, recent_n=recent_n, vocab=vocab)
+
+
+def _apply_plan_locked(
+    repo_root: Path,
+    plan: PrunePlan,
+    *,
+    recent_n: int,
+    vocab: ScrubVocabulary | None,
+) -> PrunePlan:
     vocabulary = vocab if vocab is not None else load_scrub_vocabulary()
     # Private repos keep their own names — scrubbing retained content there
     # would destroy meaning (see _repo_is_private).
