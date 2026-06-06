@@ -291,3 +291,79 @@ def test_session_start_survives_gc_failure(tmp_path: Path, monkeypatch):
     assert res.exit_code == 0
     assert "export CL_ANCHOR=" in res.stdout
     assert "export CL_SESSION_ID=" in res.stdout
+
+
+# --- audit follow-ups (2026-06-06 fresh audit) -------------------------------
+
+
+def test_manual_prune_respects_recovery_window_of_moved_archives(tmp_path: Path):
+    """An archived dir's .gc-moved-at stamp outranks its old id-date."""
+    from context_lifecycle.session.retention import auto_gc
+    anchor = _anchor(tmp_path)
+    _mk_session(anchor, "s-2026-05-01-aaaa")
+    auto_gc(anchor, today=date(2026, 6, 1))  # moved; stamp 2026-06-01
+    moved = anchor / ".context" / "archived" / "s-2026-05-01-aaaa"
+    assert moved.is_dir()
+    # Manual sweep 5 days later: id-date (May 1) is way past --retain-days 14,
+    # but the stamp (Jun 1) is not — the recovery window holds.
+    plan = build_session_prune_plan(
+        anchor, retain_days=14, today=date(2026, 6, 6), include_archived=True
+    )
+    assert [c.session_id for c in plan.candidates] == []
+    # Once the stamp itself ages past the window, manual prune may collect it.
+    plan2 = build_session_prune_plan(
+        anchor, retain_days=14, today=date(2026, 6, 20), include_archived=True
+    )
+    assert [c.session_id for c in plan2.candidates] == ["s-2026-05-01-aaaa"]
+
+
+def test_auto_gc_collision_suffix_lifecycle(tmp_path: Path):
+    """Same-id collision in archived/ gets a .N suffix and still expires."""
+    from context_lifecycle.session.retention import auto_gc
+    anchor = _anchor(tmp_path)
+    # An earlier archive with the same id already exists (e.g. self-healed
+    # live writer recreated sessions/<sid> after a previous move).
+    pre = _mk_session(anchor, "s-2026-05-01-aaaa", archived=True)
+    (pre / ".gc-moved-at").write_text("2026-06-01\n")
+    _mk_session(anchor, "s-2026-05-01-aaaa")
+    actions = auto_gc(anchor, today=date(2026, 6, 6))
+    assert actions == ["moved s-2026-05-01-aaaa -> archived/ (id-date 2026-05-01)"]
+    suffixed = anchor / ".context" / "archived" / "s-2026-05-01-aaaa.2"
+    assert suffixed.is_dir()
+    assert (suffixed / ".gc-moved-at").read_text().strip() == "2026-06-06"
+    # Tier 2 expires the suffixed dir by its stamp like any other.
+    actions = auto_gc(anchor, today=date(2026, 7, 10))
+    assert "deleted archived/s-2026-05-01-aaaa" in actions
+    assert "deleted archived/s-2026-05-01-aaaa.2" in actions
+    assert not suffixed.exists()
+
+
+def test_auto_gc_corrupt_stamp_is_fail_safe(tmp_path: Path):
+    from context_lifecycle.session.retention import auto_gc
+    anchor = _anchor(tmp_path)
+    d = _mk_session(anchor, "s-2026-01-01-gggg", archived=True)
+    (d / ".gc-moved-at").write_text("not a date\n")
+    # Ancient id-date, unreadable stamp: kept (never guess toward deletion).
+    assert auto_gc(anchor, today=TODAY) == []
+    assert d.is_dir()
+
+
+def test_throttle_is_one_attempt_per_window_even_after_failure(tmp_path: Path, monkeypatch):
+    """The stamp advances on attempt, not success — documented semantics."""
+    from datetime import datetime, timedelta
+    import context_lifecycle.session.retention as retention
+    anchor = _anchor(tmp_path)
+    _mk_session(anchor, "s-2026-05-01-aaaa")
+    now = datetime(2026, 6, 6, 12, 0, 0)
+
+    real_auto_gc = retention.auto_gc
+    monkeypatch.setattr(retention, "auto_gc", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+    import pytest as _pytest
+    with _pytest.raises(OSError):
+        retention.maybe_auto_gc(anchor, today=TODAY, now=now)
+    monkeypatch.setattr(retention, "auto_gc", real_auto_gc)
+    # Within the window: throttled despite the earlier failure.
+    assert retention.maybe_auto_gc(anchor, today=TODAY, now=now + timedelta(hours=1)) == []
+    # Next window: sweep proceeds.
+    actions = retention.maybe_auto_gc(anchor, today=TODAY, now=now + timedelta(hours=25))
+    assert len(actions) == 1

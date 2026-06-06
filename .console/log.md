@@ -1,4 +1,20 @@
 # Log
+## 2026-06-06 — fix: retention audit follow-ups (recovery window + race + tests)
+
+Fresh post-train architecture audit confirmed the train clean except four small
+retention items, fixed here: (1) manual `prune --include-archived` dated
+archived dirs by id, silently bypassing the auto-GC 30-day recovery window for
+freshly-moved old-id dirs — archived dirs now date by `.gc-moved-at` stamp when
+present (new `_moved_at_date` helper, shared with tier 2); (2) tier-1
+`shutil.move` now tolerates losing a concurrent-sweep race (OSError → skip);
+(3) the stamp-before-sweep throttle semantics (one ATTEMPT per window, not one
+success) are now documented in the docstring — deliberate, so a persistently
+failing sweep doesn't re-pay its failure on every session start; (4) test gaps
+closed: collision-suffix lifecycle, corrupt-stamp fail-safe, stamp-respecting
+manual prune, throttle-after-failure. Suite 293 pass. Two audit claims REFUTED
+and not acted on: DC9/DC7 count semantics are identical (agent misread DC7),
+and the 44d fallback is already explained at the fallback site.
+
 ## 2026-06-06 — feat: auto-GC at session start (adversarially-reviewed design)
 
 What drives `cl session prune` periodically: nothing did. Three adversarial
