@@ -70,6 +70,17 @@ def _session_date(dirname: str, dir_path: Path) -> date | None:
         return None
 
 
+def _moved_at_date(dir_path: Path) -> date | None:
+    """Date of the auto-GC ``.gc-moved-at`` stamp, or None (absent/corrupt)."""
+    marker = dir_path / _MOVED_AT_MARKER
+    if not marker.is_file():
+        return None
+    try:
+        return date.fromisoformat(marker.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+
+
 def _measure(root: Path) -> tuple[int, int]:
     files = 0
     size = 0
@@ -93,9 +104,11 @@ def build_session_prune_plan(
 ) -> SessionPrunePlan:
     """Plan a session prune (no mutation).
 
-    A session dir is a candidate when its date (id stamp, else mtime) is
-    strictly older than ``today - retain_days``. The current session and
-    undatable dirs are always kept.
+    A session dir is a candidate when its date is strictly older than
+    ``today - retain_days``. The current session and undatable dirs are always
+    kept. Dating: a ``.gc-moved-at`` stamp wins (so a manual sweep cannot
+    collapse the auto-GC archive's 30-day recovery window for a
+    freshly-moved-but-old-id dir), else the id stamp, else mtime.
     """
     anchor = Path(anchor)
     today = today or date.today()
@@ -117,7 +130,7 @@ def build_session_prune_plan(
             if current_session_id and sid == current_session_id:
                 plan.kept.append(sid)
                 continue
-            d = _session_date(sid, child)
+            d = _moved_at_date(child) or _session_date(sid, child)
             if d is None or d >= cutoff:
                 plan.kept.append(sid)
                 continue
@@ -228,7 +241,12 @@ def auto_gc(
                 while (archive_root / f"{child.name}.{n}").exists():
                     n += 1
                 dst = archive_root / f"{child.name}.{n}"
-            shutil.move(str(child), str(dst))
+            try:
+                shutil.move(str(child), str(dst))
+            except OSError:
+                # Concurrent sweep won the race (src vanished) — skip; the
+                # winner stamped it.
+                continue
             (dst / _MOVED_AT_MARKER).write_text(today.isoformat() + "\n", encoding="utf-8")
             actions.append(f"moved {child.name} -> archived/ (id-date {d})")
 
@@ -239,14 +257,11 @@ def auto_gc(
         for child in sorted(archive_root.iterdir()):
             if not _is_session_dir(child) or child.name in protect:
                 continue
-            marker = child / _MOVED_AT_MARKER
-            expired = False
-            if marker.is_file():
-                try:
-                    moved_at = date.fromisoformat(marker.read_text(encoding="utf-8").strip())
-                    expired = moved_at < delete_cutoff
-                except ValueError:
-                    expired = False  # unreadable stamp: keep (fail-safe)
+            moved_at = _moved_at_date(child)
+            if moved_at is not None:
+                expired = moved_at < delete_cutoff
+            elif (child / _MOVED_AT_MARKER).is_file():
+                expired = False  # unreadable stamp: keep (fail-safe)
             else:
                 # Archived via `cl session end` — no stamp; use a longer
                 # id-date window equivalent to move+delete.
@@ -266,6 +281,11 @@ def maybe_auto_gc(
     now: datetime | None = None,
 ) -> list[str]:
     """Throttled `auto_gc`: at most once per GC_THROTTLE_HOURS per anchor.
+
+    The stamp is written BEFORE the sweep — deliberately one *attempt* per
+    window, not one success: a persistently failing sweep (disk full, perms)
+    must not re-pay its failure on every session start, and one skipped day
+    is immaterial against a 14-day window.
 
     Appends one line per action to ``sessions/.gc/log`` so silent deletions
     leave an audit trail. Callers must treat this as best-effort (wrap it);
