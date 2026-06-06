@@ -80,6 +80,7 @@ audit:
       - src/context_lifecycle/context_engine/campaign.py
       - src/context_lifecycle/context_engine/prune.py
       - src/context_lifecycle/reconcile/check.py
+      - src/context_lifecycle/reconcile/lock.py
       - src/context_lifecycle/reconcile/prune.py
       - src/context_lifecycle/reconcile/index.py
       - src/context_lifecycle/reconcile/worksheet.py

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `cl reconcile prune --apply` now serializes per repo via an exclusive
+  `.console/.reconcile.lock` (flock); a concurrent apply fails closed with
+  exit code 3 instead of racing the archive append and source trim.
+- `cl reconcile index --check` (with `--out`): verify the committed status
+  dashboard is fresh — exit non-zero when missing or stale — so hooks/CI can
+  gate on it instead of trusting the "do not hand-edit" label.
+
 ### Changed
 
 - Onboarded the repository to the Custodian guard: added `.custodian/config.yaml`,

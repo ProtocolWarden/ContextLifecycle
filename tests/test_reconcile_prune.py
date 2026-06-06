@@ -306,3 +306,4 @@ def test_private_manifest_root_prune_keeps_names(tmp_path, monkeypatch):
     assert SCRUB_NAME in retained
     assert SCRUB_NAME in changelog
     assert "a private downstream repo" not in retained + changelog
+
