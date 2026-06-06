@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Opportunistic auto-GC in `cl session start` (throttled to once per 24h
+  per anchor): two-stage move-then-delete — sessions older than 14 days
+  move to `.context/archived/` with a `.gc-moved-at` stamp (reversible;
+  still-live writers self-heal), archived dirs are deleted 30 days after
+  the stamp (44-day id-date fallback for `session end` archives). Strictly
+  best-effort: a GC failure never breaks session start; actions append to
+  `sessions/.gc/log`.
+
 - `cl session prune` — age-based retention for ephemeral session state.
   Deletes session subdirs (and their `l-*.yaml` lease records) older than
   `--retain-days` (default 14); dry-run by default, `--apply` mutates; the

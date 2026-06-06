@@ -110,7 +110,8 @@ def build_session_prune_plan(
         if not root.is_dir():
             continue
         for child in sorted(root.iterdir()):
-            if not child.is_dir():
+            if not child.is_dir() or child.name.startswith("."):
+                # Dot-dirs are GC bookkeeping (sessions/.gc/), never sessions.
                 continue
             sid = child.name
             if current_session_id and sid == current_session_id:
@@ -156,3 +157,136 @@ def format_session_prune_plan(plan: SessionPrunePlan, *, applied: bool) -> str:
     if not plan.candidates:
         lines.append("  nothing to prune.")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Opportunistic auto-GC (runs inside `cl session start`)                       #
+# --------------------------------------------------------------------------- #
+#
+# Adversarially-reviewed design (2026-06-06): plain auto-delete is unsafe —
+# a loop session whose *id* is 15+ days old can still be writing leases today,
+# and the $CL_SESSION_ID guard only protects the starting process. The only
+# shape that survives is two-stage move-then-delete:
+#
+#   Tier 1 (reversible): sessions older than MOVE_AFTER_DAYS move to
+#     .context/archived/ with a `.gc-moved-at` stamp. A still-live writer
+#     self-heals — its next capture recreates the sessions/ dir; the moved
+#     snapshot stays recoverable.
+#   Tier 2 (bounded): archived dirs whose stamp is older than
+#     DELETE_AFTER_DAYS are deleted. Dirs archived by `cl session end`
+#     (no stamp) fall back to id-date older than MOVE+DELETE days.
+#
+# Warn-only was rejected on fleet evidence: loop controllers start sessions
+# with capture_output=True (stderr unread), and the phase-3 stop-hook nudge
+# precedent showed warn-only hygiene is inert here.
+
+MOVE_AFTER_DAYS = 14
+DELETE_AFTER_DAYS = 30
+GC_THROTTLE_HOURS = 24
+
+_MOVED_AT_MARKER = ".gc-moved-at"
+
+
+def _gc_state_dir(anchor: Path) -> Path:
+    # A dot-named dir under sessions/ — covered by the fleet's
+    # `.context/sessions/*/` gitignore pattern and skipped by every sweep.
+    return anchor / ".context" / "sessions" / ".gc"
+
+
+def _is_session_dir(child: Path) -> bool:
+    return child.is_dir() and not child.name.startswith(".")
+
+
+def auto_gc(
+    anchor: Path,
+    *,
+    protect: frozenset[str] | set[str] = frozenset(),
+    today: date | None = None,
+) -> list[str]:
+    """Run one two-stage GC sweep. Returns one human line per action taken."""
+    anchor = Path(anchor)
+    today = today or date.today()
+    actions: list[str] = []
+
+    sessions_root = anchor / ".context" / "sessions"
+    archive_root = archived_root_for(anchor)
+
+    # --- Tier 1: move expired sessions to archived/ (reversible) ----------
+    move_cutoff = today - timedelta(days=MOVE_AFTER_DAYS)
+    if sessions_root.is_dir():
+        for child in sorted(sessions_root.iterdir()):
+            if not _is_session_dir(child) or child.name in protect:
+                continue
+            d = _session_date(child.name, child)
+            if d is None or d >= move_cutoff:
+                continue
+            archive_root.mkdir(parents=True, exist_ok=True)
+            dst = archive_root / child.name
+            if dst.exists():
+                # id collision with an earlier archive — merge by suffix.
+                n = 2
+                while (archive_root / f"{child.name}.{n}").exists():
+                    n += 1
+                dst = archive_root / f"{child.name}.{n}"
+            shutil.move(str(child), str(dst))
+            (dst / _MOVED_AT_MARKER).write_text(today.isoformat() + "\n", encoding="utf-8")
+            actions.append(f"moved {child.name} -> archived/ (id-date {d})")
+
+    # --- Tier 2: delete long-archived dirs (bounded total state) ----------
+    delete_cutoff = today - timedelta(days=DELETE_AFTER_DAYS)
+    fallback_cutoff = today - timedelta(days=MOVE_AFTER_DAYS + DELETE_AFTER_DAYS)
+    if archive_root.is_dir():
+        for child in sorted(archive_root.iterdir()):
+            if not _is_session_dir(child) or child.name in protect:
+                continue
+            marker = child / _MOVED_AT_MARKER
+            expired = False
+            if marker.is_file():
+                try:
+                    moved_at = date.fromisoformat(marker.read_text(encoding="utf-8").strip())
+                    expired = moved_at < delete_cutoff
+                except ValueError:
+                    expired = False  # unreadable stamp: keep (fail-safe)
+            else:
+                # Archived via `cl session end` — no stamp; use a longer
+                # id-date window equivalent to move+delete.
+                d = _session_date(child.name, child)
+                expired = d is not None and d < fallback_cutoff
+            if expired:
+                shutil.rmtree(child, ignore_errors=True)
+                actions.append(f"deleted archived/{child.name}")
+    return actions
+
+
+def maybe_auto_gc(
+    anchor: Path,
+    *,
+    protect: frozenset[str] | set[str] = frozenset(),
+    today: date | None = None,
+    now: datetime | None = None,
+) -> list[str]:
+    """Throttled `auto_gc`: at most once per GC_THROTTLE_HOURS per anchor.
+
+    Appends one line per action to ``sessions/.gc/log`` so silent deletions
+    leave an audit trail. Callers must treat this as best-effort (wrap it);
+    it must never make `cl session start` fail.
+    """
+    now = now or datetime.now()
+    state = _gc_state_dir(Path(anchor))
+    stamp = state / "last-run"
+    if stamp.is_file():
+        try:
+            last = datetime.fromisoformat(stamp.read_text(encoding="utf-8").strip())
+            if now - last < timedelta(hours=GC_THROTTLE_HOURS):
+                return []
+        except ValueError:
+            pass  # corrupt stamp: run and rewrite it
+    state.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(now.isoformat(), encoding="utf-8")
+
+    actions = auto_gc(anchor, protect=protect, today=today)
+    if actions:
+        with (state / "log").open("a", encoding="utf-8") as fh:
+            for a in actions:
+                fh.write(f"{now.isoformat()} {a}\n")
+    return actions
