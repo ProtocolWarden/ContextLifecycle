@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cl session prune` — age-based retention for ephemeral session state.
+  Deletes session subdirs (and their `l-*.yaml` lease records) older than
+  `--retain-days` (default 14); dry-run by default, `--apply` mutates; the
+  current `$CL_SESSION_ID` always survives; `--include-archived` extends to
+  `.context/archived/`.
+
 - `cl reconcile prune --apply` now serializes per repo via an exclusive
   `.console/.reconcile.lock` (flock); a concurrent apply fails closed with
   exit code 3 instead of racing the archive append and source trim.

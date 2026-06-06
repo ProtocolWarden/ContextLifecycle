@@ -1,4 +1,18 @@
 # Log
+## 2026-06-06 — feat: cl session prune (ephemeral-tier retention)
+
+Closes the last CL-side spec-audit tail item: PM's anchor had accumulated ~69k
+l-*.yaml lease records / 276 MB under .context/sessions/ because loop/executor
+sessions never call `cl session end`. New session/retention.py +
+`cl session prune [MANIFEST] [--retain-days N] [--include-archived] [--apply]`:
+date sessions by their id stamp (s-YYYY-MM-DD-…, mtime fallback), delete dirs
+strictly older than the cutoff, always keep $CL_SESSION_ID, dry-run by default
+(reconcile-prune idiom). Safe by the ephemeral-tier invariant — a session file
+must never hold the only copy of anything worth keeping. Live-verified on PM:
+7-day dry-run identifies 60,783 files / 50.5 MiB; default 14-day window
+correctly keeps the still-young sessions. 11 new tests (T1 guard satisfied via direct PruneCandidate/SessionPrunePlan
+assertions); suite 280 pass.
+
 ## 2026-06-06 — fix: prune apply lock + index --check freshness gate
 
 Two findings from the PlatformManifest spec audit (PM #68 train) land here:

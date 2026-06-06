@@ -37,6 +37,12 @@ from context_lifecycle.session.ids import (
     is_valid_session_id,
 )
 from context_lifecycle.session.paths import SessionPaths, archived_root
+from context_lifecycle.session.retention import (
+    DEFAULT_RETAIN_DAYS,
+    apply_session_prune,
+    build_session_prune_plan,
+    format_session_prune_plan,
+)
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -156,3 +162,57 @@ def end(
             typer.echo(f"cl session end: archive failed: {e}", err=True)
 
     typer.echo(f"unset {ANCHOR_ENV} {SESSION_ENV}")
+
+
+@app.command("prune")
+def prune(
+    manifest: Optional[str] = typer.Argument(
+        None,
+        help=f"Anchor manifest name or path (default: ${ANCHOR_ENV}).",
+    ),
+    retain_days: int = typer.Option(
+        DEFAULT_RETAIN_DAYS,
+        "--retain-days",
+        help="Keep sessions younger than this many days.",
+    ),
+    include_archived: bool = typer.Option(
+        False, "--include-archived", help="Also prune .context/archived/."
+    ),
+    apply: bool = typer.Option(
+        False, "--apply", help="Delete. Without this flag, prune is a dry-run."
+    ),
+) -> None:
+    """Delete ephemeral session subdirs older than the retention window.
+
+    Sessions are the ephemeral tier — never the only copy of anything worth
+    keeping — but loop/executor sessions that never `cl session end` accumulate
+    lease records forever. The current session ($CL_SESSION_ID) always survives.
+    """
+    if manifest is not None:
+        try:
+            anchor = resolve_anchor_arg(manifest)
+        except (ManifestNotFound, AmbiguousAnchor) as e:
+            typer.echo(f"cl session prune: {e}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        env_anchor = os.environ.get(ANCHOR_ENV, "").strip()
+        if not env_anchor:
+            typer.echo(
+                f"cl session prune: no MANIFEST argument and ${ANCHOR_ENV} unset.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        anchor = Path(env_anchor)
+    if not (anchor / ".context").is_dir():
+        typer.echo(f"cl session prune: {anchor} has no .context/.", err=True)
+        raise typer.Exit(code=3)
+
+    plan = build_session_prune_plan(
+        anchor,
+        retain_days=retain_days,
+        include_archived=include_archived,
+        current_session_id=os.environ.get(SESSION_ENV, "").strip() or None,
+    )
+    if apply:
+        plan = apply_session_prune(plan)
+    typer.echo(format_session_prune_plan(plan, applied=apply))
