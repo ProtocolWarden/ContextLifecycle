@@ -1,4 +1,24 @@
 # Log
+## 2026-06-06 — feat: auto-GC at session start (adversarially-reviewed design)
+
+What drives `cl session prune` periodically: nothing did. Three adversarial
+reviews settled the action: plain auto-delete REJECTED (a loop session whose id
+is 15+ days old can still be writing leases — id-date is frozen at creation and
+$CL_SESSION_ID only protects the starter); warn-only REJECTED on fleet evidence
+(loop controller starts sessions with capture_output=True so stderr is unread;
+phase-3 nudge precedent proved warn-only hygiene inert); the surviving shape is
+two-stage move-then-delete. Tier 1: >14d sessions MOVE to archived/ with a
+.gc-moved-at stamp — reversible, and a still-live writer self-heals by
+recreating its sessions/ dir. Tier 2: archived dirs DELETE 30d after the stamp
+(44d id-date fallback for `session end` archives). Trigger: inside
+`cl session start`, 24h stamp throttle, whole sweep try/except (stdout carries
+eval'd exports — GC must never escape), protects both env sid and the freshly
+generated sid, audit lines to sessions/.gc/log (dot-dir, covered by the fleet's
+sessions/*/ gitignore; all sweeps skip dot-dirs). Manual `cl session prune`
+unchanged. 9 new tests (incl. stdout-purity and GC-failure-survival); suite 289
+pass. Live smoke on PM: stamp written, nothing moved (all sessions <14d),
+git status clean.
+
 ## 2026-06-06 — feat: cl session prune (ephemeral-tier retention)
 
 Closes the last CL-side spec-audit tail item: PM's anchor had accumulated ~69k

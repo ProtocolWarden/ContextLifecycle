@@ -42,6 +42,7 @@ from context_lifecycle.session.retention import (
     apply_session_prune,
     build_session_prune_plan,
     format_session_prune_plan,
+    maybe_auto_gc,
 )
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -90,6 +91,21 @@ def start(
     except OSError:
         # If we can't write here, the hook will surface the issue cleanly later.
         pass
+
+    # Opportunistic two-stage GC (throttled; see retention.auto_gc). Strictly
+    # best-effort: stdout carries eval'd export lines and --shell execs, so a
+    # GC failure must never escape — stderr note only, then proceed.
+    try:
+        protect = {session_id, os.environ.get(SESSION_ENV, "").strip()} - {""}
+        gc_actions = maybe_auto_gc(anchor, protect=protect)
+        if gc_actions:
+            typer.echo(
+                f"cl: auto-gc: {len(gc_actions)} session dir(s) processed "
+                f"(log: .context/sessions/.gc/log)",
+                err=True,
+            )
+    except Exception as e:  # noqa: BLE001 — GC must never break session start
+        typer.echo(f"cl: auto-gc skipped ({e})", err=True)
 
     manifest_name = anchor.name
 
