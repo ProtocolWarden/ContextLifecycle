@@ -285,3 +285,58 @@ def test_build_context_budget_drop_named(tmp_path):
 # Note: the leaf-doc anti-staleness guard (importing the consumer's src symbols
 # named in its leaf docs) is consumer-specific and lives in the consumer repo
 # (e.g. PlatformManifest), not in the engine package's tests.
+
+
+# --- injection telemetry (§7a instrumentation) ---------------------------
+
+def test_build_context_logs_injection_event(tmp_path):
+    import json as _json
+    ctx = tmp_path / ".context"
+    ctx.mkdir()
+    (ctx / "routes.yaml").write_text(
+        'engine_compat: ">=0.2 <0.3"\n'
+        'routes:\n  - match: "src/loader.py"\n'
+        '    inject: ["docs/inject/loader.md"]\n    priority: 10\n'
+    )
+    doc = tmp_path / "docs" / "inject"
+    doc.mkdir(parents=True)
+    (doc / "loader.md").write_text("## Inject\n- Fail-closed.\n")
+
+    route.build_context("src/loader.py", tmp_path)
+
+    log = tmp_path / ".context" / "sessions" / ".telemetry" / "injection.jsonl"
+    assert log.is_file()
+    event = _json.loads(log.read_text().splitlines()[-1])
+    assert event["target"] == "src/loader.py"
+    assert event["injected"] == ["docs/inject/loader.md"]
+    assert event["cold_surfaced"] == 0
+    assert "ts" in event
+
+    # Appends (not overwrites) on the next injection.
+    route.build_context("src/loader.py", tmp_path)
+    assert len(log.read_text().splitlines()) == 2
+
+
+def test_build_context_no_event_on_no_match(tmp_path):
+    route.build_context("README.md", tmp_path)  # no routes at all
+    assert not (tmp_path / ".context" / "sessions" / ".telemetry").exists()
+
+
+def test_telemetry_failure_never_breaks_router(tmp_path, monkeypatch):
+    ctx = tmp_path / ".context"
+    ctx.mkdir()
+    (ctx / "routes.yaml").write_text(
+        'engine_compat: ">=0.2 <0.3"\n'
+        'routes:\n  - match: "src/loader.py"\n'
+        '    inject: ["docs/inject/loader.md"]\n    priority: 10\n'
+    )
+    doc = tmp_path / "docs" / "inject"
+    doc.mkdir(parents=True)
+    (doc / "loader.md").write_text("## Inject\n- Rule.\n")
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(route.Path, "mkdir", boom)
+    block = route.build_context("src/loader.py", tmp_path)
+    assert "Rule." in block  # injection unaffected by telemetry failure
