@@ -1,4 +1,18 @@
 # Log
+## 2026-06-06 — feat: injection telemetry (closes the §7a instrumentation gap)
+
+The context-management completeness audit found injection effectiveness was
+write-only: the §7a KEEP verdict rested on one observed edit because nothing
+records when routes fire, making any future re-evaluation data-free. route.py's
+build_context now appends one JSONL event per surfaced injection (target,
+injected docs, empty/missing/over-budget diagnostics, cold-surfaced count) to
+<anchor>/.context/sessions/.telemetry/injection.jsonl — machine-local dot-dir
+under sessions/ (fleet gitignore covers it; GC sweeps skip dot-dirs). Strictly
+best-effort: telemetry failure never affects the router (spec §1 never-raises;
+test proves injection survives a telemetry OSError). No event on no-match, so
+the log measures fires, not edits. Consumers pick it up on next `cl context
+init` engine refresh. 3 new tests; suite 296 pass.
+
 ## 2026-06-06 — fix: retention audit follow-ups (recovery window + race + tests)
 
 Fresh post-train architecture audit confirmed the train clean except four small

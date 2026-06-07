@@ -21,8 +21,10 @@ tool call when wired into a hook.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -286,6 +288,44 @@ def _surface_cold_lines(target: str, root: Path) -> list[str]:
         return []
 
 
+
+def _log_injection_event(
+    root: Path,
+    target: str,
+    *,
+    injected: list[str],
+    empty: list[str],
+    missing: list[str],
+    over_budget: list[str],
+    cold_count: int,
+) -> None:
+    """Append one JSONL line per injection to sessions/.telemetry/injection.jsonl.
+
+    The §7a gate verdict ("KEEP") rested on a single observed edit because
+    nothing recorded when routes fire; this is the instrumentation that makes
+    the next re-evaluation data-driven. Telemetry lives under sessions/ (a
+    dot-dir, machine-local, covered by the fleet's sessions gitignore) and is
+    strictly best-effort: a telemetry failure must never affect injection
+    (spec §1: the router never raises).
+    """
+    try:
+        tel_dir = root / ".context" / "sessions" / ".telemetry"
+        tel_dir.mkdir(parents=True, exist_ok=True)
+        event = {
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "target": target,
+            "injected": injected,
+            "empty": empty,
+            "missing": missing,
+            "over_budget": over_budget,
+            "cold_surfaced": cold_count,
+        }
+        with (tel_dir / "injection.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except Exception:
+        pass  # never let telemetry break the router
+
+
 def build_context(target: str, root: Path) -> str:
     """Top-level: produce the injectable context block for `target`, or ''.
 
@@ -297,18 +337,21 @@ def build_context(target: str, root: Path) -> str:
     # Engine code lives in .context/.engine/; routes.yaml lives in .context/ (spec §1).
     blocks: list[str] = []
     notes: list[str] = []
+    injected_docs: list[str] = []
+    empty: list[str] = []
+    missing: list[str] = []
+    over_budget: list[str] = []
     routes, max_docs, compatible = load_routes(root / ".context")
     if compatible and routes:
         docs, over_budget = select_docs_split(target, routes, max_docs)
 
-        empty: list[str] = []
-        missing: list[str] = []
         for doc in docs:
             body = extract_inject(root / doc)
             if body == MISSING_DOC:
                 missing.append(doc)
             elif body:
                 blocks.append(f"<!-- {doc} -->\n{body}")
+                injected_docs.append(doc)
             else:
                 empty.append(doc)
 
@@ -336,6 +379,17 @@ def build_context(target: str, root: Path) -> str:
     # common case: most code has cold knowledge but no leaf doc) — spec §2.3.
     if not blocks and not notes and not cold_lines:
         return ""
+
+    # Something is being surfaced — record it (best-effort, never raises).
+    _log_injection_event(
+        root,
+        target,
+        injected=injected_docs,
+        empty=empty,
+        missing=missing,
+        over_budget=list(over_budget),
+        cold_count=len(cold_lines),
+    )
 
     note = ("\n\n" + "\n".join(notes)) if notes else ""
     cold_section = ""
