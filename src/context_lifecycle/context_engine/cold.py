@@ -325,9 +325,11 @@ def surface_cold(target: str, knowledge_dir: Path, max_items: int) -> list[str]:
 def write_item(knowledge_dir: Path, item: ColdItem) -> Path:
     """Serialize a §2.6 item back to ``knowledge/<slug>.md``.
 
-    Used by the seal path / tests. The live Stop hook is PARKED
-    (docs/architecture/phase3-capture-draft.sh), so this is exercised by tests
-    and a future ``cl seal`` step, not spliced now. Returns the written path.
+    Used by the seal path / tests. The Stop-hook capture path was CLOSED as
+    superseded on 2026-06-05 (work-order phase-3 closure; draft retained at
+    docs/architecture/phase3-capture-draft.sh for reference), so this is
+    exercised by tests and a future ``cl seal`` step only — do not splice it
+    into a live hook without reopening that decision. Returns the written path.
     """
     knowledge_dir.mkdir(parents=True, exist_ok=True)
     fm = {

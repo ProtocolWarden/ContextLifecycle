@@ -1,4 +1,11 @@
 # Log
+## 2026-06-06 — fix: port PM #68's cold.py docstring into engine source
+
+PM #68 corrected write_item's docstring (PARKED → CLOSED-superseded) in PM's
+vendored .context/.engine/cold.py copy only — `cl context init` refreshes
+engine copies from THIS package, so the next refresh would have silently
+reverted the fix. Lesson: engine fixes go to CL source first, consumers second.
+
 ## 2026-06-06 — feat: injection telemetry (closes the §7a instrumentation gap)
 
 The context-management completeness audit found injection effectiveness was
