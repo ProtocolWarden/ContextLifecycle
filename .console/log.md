@@ -1,4 +1,15 @@
 # Log
+## 2026-06-15 — chore: enable CAP1 capability-ref enforcement
+
+Set `audit.capabilities.enforce: true` + `capabilities.registry_repo:
+../PlatformManifest` so Custodian's CAP1 detector verifies the capability this
+repo owns (`session_gc`) points at invocation.ref code that resolves here —
+`context_lifecycle.session.retention.apply_session_prune`. Uses `registry_repo`
+(not `cross_repo`) so CAP1 turns on without also enabling the X-class cross-repo
+detectors (per the decoupling in Custodian #38). The PM seed ref was corrected to
+the real entrypoint in PM #76 — caught by enabling CAP1. Activates once the local
+custodian install is refreshed to @main.
+
 ## 2026-06-06 — fix: port PM #68's cold.py docstring into engine source
 
 PM #68 corrected write_item's docstring (PARKED → CLOSED-superseded) in PM's

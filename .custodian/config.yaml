@@ -18,6 +18,14 @@ audit:
   # This repo is reconciled + clean (.console slim, leak-free) — flip R1/R2 on to enforce.
   reconcile_enforce: true
 
+  # CAP1 — enforce that the capabilities this repo owns (session_gc) point at
+  # invocation.ref code that resolves here
+  # (context_lifecycle.session.retention.apply_session_prune). registry_repo
+  # locates the registry + manifest without enabling the X-class detectors.
+  capabilities:
+    enforce: true
+    registry_repo: ../PlatformManifest
+
   # session/anchor + cli/session read CL_ANCHOR / CL_SESSION_ID / SHELL from the
   # environment in the CLI layer; this *is* the config/entry layer for those vars.
   # context_engine/prune.py reads CL_SESSION_ID standalone — it ships verbatim
