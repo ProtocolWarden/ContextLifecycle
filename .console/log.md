@@ -1,4 +1,13 @@
 # Log
+## 2026-06-15 — chore: cwd-safe ContextGuard hook in canonical adapter template
+
+Hardened the adapter template `adapters/claude/settings.json` hook commands to
+`bash "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/..."` so installed hooks resolve
+regardless of the shell cwd. This is the source of truth every `adapters/install.sh`
++ provisioning install flows from, so future installs are cwd-safe; deployed repos
+are hardened in sibling PRs. The relative path errored non-blockingly with
+"No such file or directory" when a tool ran from a non-root cwd.
+
 ## 2026-06-15 — chore: enable CAP1 capability-ref enforcement
 
 Set `audit.capabilities.enforce: true` + `capabilities.registry_repo:
