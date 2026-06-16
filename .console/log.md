@@ -1,4 +1,18 @@
 # Log
+## 2026-06-16 — feat: `cl ledger capture` (operator-interventions ledger, capture half)
+
+Added `cl ledger capture <signal> "<context>"` — appends an *unjudged candidate*
+(`- [ ] CANDIDATE <date> <signal> — <context> — judgment: ___`) to the
+operator-interventions ledger in the private manifest
+(`<private-root>/ledger/operator-interventions.md`), deduped on signal+context so
+a re-firing fleet signal can't pile up duplicates. Capture only ever adds
+candidates; *promotion* (writing the judgment line, keep-or-drop) stays manual by
+design — auto-judging would manufacture false confidence and a firehose of
+unjudged rows would destroy the signal. New `context_lifecycle.ledger` package
+(logic) + `cli/ledger.py` (Typer command), fail-soft via `LedgerUnavailable` when
+no private manifest resolves. Intended caller: a fleet signal (OC worker observing
+a human closed/overrode its PR), wired separately.
+
 ## 2026-06-15 — chore: cwd-safe ContextGuard hook in canonical adapter template
 
 Hardened the adapter template `adapters/claude/settings.json` hook commands to
