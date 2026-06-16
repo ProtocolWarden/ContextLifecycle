@@ -7,6 +7,8 @@ Subcommands:
              invoked by a fleet signal (e.g. a worker observing a human closed
              its PR), not by hand. Promotion (adding the judgment line) is
              always manual — this command never judges and never promotes.
+  check    — surface candidates left unpromoted past a max age (closes the
+             capture→promote loop). Exit 1 when stale candidates exist.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import typer
 
 from context_lifecycle.ledger import LedgerUnavailable, capture
+from context_lifecycle.ledger.check import DEFAULT_MAX_AGE_DAYS, check as run_check
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -50,3 +53,30 @@ def capture_cmd(
         typer.echo(f"cl ledger capture: candidate recorded → {path}")
     else:
         typer.echo(f"cl ledger capture: already present (deduped) → {path}")
+
+
+@app.command("check")
+def check_cmd(
+    max_age_days: int = typer.Option(
+        DEFAULT_MAX_AGE_DAYS, "--max-age-days", help="Flag candidates older than this."
+    ),
+) -> None:
+    """List candidates left unpromoted past --max-age-days. Exit 1 if any.
+
+    Fail-soft on a missing private manifest (exit 0, nothing to check) so this is
+    safe to call opportunistically from a hook. A real stale candidate exits 1 so
+    it can gate or warn — write the judgment line, or drop the entry.
+    """
+    try:
+        stale = run_check(max_age_days=max_age_days)
+    except LedgerUnavailable:
+        typer.echo("cl ledger check: no ledger to check (private manifest unavailable)")
+        return
+    if not stale:
+        typer.echo("cl ledger check: OK — no candidates past the age threshold")
+        return
+    typer.echo(f"cl ledger check: {len(stale)} unpromoted candidate(s) past {max_age_days}d:")
+    for c in stale:
+        typer.echo(f"  +{c.age_days}d  {c.date}  {c.signal} — {c.context}")
+    typer.echo("Promote (add the judgment line) or drop each, then re-run.")
+    raise typer.Exit(code=1)

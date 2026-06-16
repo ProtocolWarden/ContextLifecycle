@@ -1,4 +1,15 @@
 # Log
+## 2026-06-16 — feat: `cl ledger check` (staleness gate for unpromoted candidates)
+
+Added `cl ledger check [--max-age-days N]` (default 14): lists
+operator-interventions-ledger *candidates* (`- [ ] CANDIDATE …`) left unpromoted
+past the age threshold and exits 1 if any, else 0. Promoted entries (the
+CANDIDATE marker removed) are never flagged; unparseable dates are skipped;
+fail-soft (exit 0) when no private manifest resolves. Closes the capture→promote
+loop — capture without promotion is just an accreting pile. Logic in
+`context_lifecycle.ledger.check`; surfaced non-blocking from PrivateManifest's
+pre-push.
+
 ## 2026-06-16 — feat: `cl ledger capture` (operator-interventions ledger, capture half)
 
 Added `cl ledger capture <signal> "<context>"` — appends an *unjudged candidate*
