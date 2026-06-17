@@ -1,4 +1,27 @@
 # Log
+## 2026-06-17 — feat: `cl ledger observe` + `promote` (consolidation loop, self-verifying)
+
+Closed the capture→judgment loop with two new ledger steps, both built so the
+controller can run them without manufacturing judgment:
+
+- **observe** (`ledger/observe.py`, `cl ledger observe`): clusters candidates by
+  recurring signal within a window (default ≥3 in 30d), skipping signals that
+  already carry a verifiable promoted judgment. Counts, never judges — surfaces
+  the *novel* patterns awaiting a first human call. Exit 0 (a nudge).
+- **promote** (`ledger/promote.py`, `cl ledger promote --repos-root …`): the one
+  machine-allowed promotion — a *re-verification*, not a judgment. A signal earns
+  its judgment once from a human, who appends a machine-readable
+  `[check: custodian:<repo>:<id> | ci:<repo>:<wf>:<job> | path:<repo>:<rel>]`.
+  Thereafter each recurrence auto-promotes by confirming that check still resolves
+  (pure file-read, no command exec), writing a reconfirmation line that cites the
+  source judgment + a `[reconfirmed: ref @ date]` stamp (distinct tag, so auto
+  lines never breed further auto-promotions). A ref that stops resolving is
+  reported as **regressed** (exit 1) and its candidates are left untouched — an
+  encoded judgment rotted, which is a human signal. Residual free-text judgments
+  (nothing to verify) stay manual. 35 new tests (observe/promote/CLI); 345 green.
+  Operator decision (2026-06-17): controller may auto-promote the self-verifying
+  class; free-text waits on a human.
+
 ## 2026-06-16 — feat: `cl ledger check` (staleness gate for unpromoted candidates)
 
 Added `cl ledger check [--max-age-days N]` (default 14): lists

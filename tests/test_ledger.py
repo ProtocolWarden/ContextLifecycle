@@ -7,7 +7,7 @@ from __future__ import annotations
 from typer.testing import CliRunner
 
 from context_lifecycle.cli.ledger import app as ledger_app
-from context_lifecycle.cli.ledger import capture_cmd, check_cmd
+from context_lifecycle.cli.ledger import capture_cmd, check_cmd, observe_cmd, promote_cmd
 from context_lifecycle.cli.main import app
 from context_lifecycle.ledger import LEDGER_SUBPATH
 
@@ -18,10 +18,14 @@ def test_capture_cmd_is_registered():
     # Direct symbol reference (T1) + the group is wired into the root app (T6).
     assert capture_cmd is not None
     assert check_cmd is not None
+    assert observe_cmd is not None
+    assert promote_cmd is not None
     res = runner.invoke(app, ["ledger", "--help"])
     assert res.exit_code == 0
     assert "capture" in res.output
     assert "check" in res.output
+    assert "observe" in res.output
+    assert "promote" in res.output
 
 
 def test_ledger_app_help():
@@ -73,3 +77,65 @@ def test_cli_check_fail_soft_no_private_manifest(tmp_path, monkeypatch):
     res = runner.invoke(app, ["ledger", "check"])
     assert res.exit_code == 0  # fail-soft: nothing to check
     assert "no ledger to check" in res.output
+
+
+def test_cli_observe_clusters(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(tmp_path))
+    for ctx in ("a", "b", "c"):
+        runner.invoke(app, ["ledger", "capture", "sig", ctx, "--date", "2026-06-20"])
+    res = runner.invoke(app, ["ledger", "observe", "--min-count", "3", "--window-days", "9999"])
+    assert res.exit_code == 0
+    assert "recurring signal" in res.output
+    assert "sig" in res.output
+
+
+def test_cli_observe_fail_soft_no_private_manifest(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(tmp_path / "nope"))
+    res = runner.invoke(app, ["ledger", "observe"])
+    assert res.exit_code == 0
+    assert "no ledger to observe" in res.output
+
+
+def test_cli_promote_self_verifies(tmp_path, monkeypatch):
+    # repos_root with the referenced artifact present → recurrence auto-promotes.
+    repos = tmp_path / "repos"
+    (repos / "Repo").mkdir(parents=True)
+    (repos / "Repo" / "f.py").write_text("x", encoding="utf-8")
+    private = tmp_path / "private"
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(private))
+    path = private / LEDGER_SUBPATH
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "## Entries\n"
+        "- **2026-05-01** — sig: x → **judgment:** y [check: path:Repo:f.py]\n"
+        "- [ ] CANDIDATE 2026-06-20 sig — a — judgment: ___\n",
+        encoding="utf-8",
+    )
+    res = runner.invoke(app, ["ledger", "promote", "--repos-root", str(repos)])
+    assert res.exit_code == 0
+    assert "promoted 1" in res.output
+
+
+def test_cli_promote_regression_exit_one(tmp_path, monkeypatch):
+    repos = tmp_path / "repos"  # empty — referenced artifact is absent
+    repos.mkdir()
+    private = tmp_path / "private"
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(private))
+    path = private / LEDGER_SUBPATH
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "## Entries\n"
+        "- **2026-05-01** — sig: x → **judgment:** y [check: path:Repo:gone.py]\n"
+        "- [ ] CANDIDATE 2026-06-20 sig — a — judgment: ___\n",
+        encoding="utf-8",
+    )
+    res = runner.invoke(app, ["ledger", "promote", "--repos-root", str(repos)])
+    assert res.exit_code == 1
+    assert "REGRESSED" in res.output
+
+
+def test_cli_promote_fail_soft_no_private_manifest(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRIVATE_MANIFEST_DIR", str(tmp_path / "nope"))
+    res = runner.invoke(app, ["ledger", "promote", "--repos-root", str(tmp_path)])
+    assert res.exit_code == 0
+    assert "no ledger to promote" in res.output
