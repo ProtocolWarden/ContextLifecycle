@@ -38,12 +38,19 @@ Two entry states:
 
 - **candidate** — auto-captured, *unjudged*:
   `- [ ] CANDIDATE <date> <signal> — <context> — judgment: ___`
-- **promoted** — a human filled the judgment and decided keep-or-drop. Rewrite
-  the line into a `- **<date>** — <what happened> → **judgment:** <encodable
-  check>` bullet, or delete it if it isn't worth encoding.
+- **promoted** — the judgment was filled and keep-or-drop decided. Rewrite the
+  line into a `- **<date>** — <signal>: <what happened> → **judgment:**
+  <encodable check>` bullet, or delete it if it isn't worth encoding.
 
-Capture (a `cl ledger capture` call, usually from a fleet signal) only ever adds
-candidates. Promotion is always manual — never auto-promote, never auto-judge.
+A signal's *first* judgment is human (or signed-off). If it's an encodable
+check, append a machine-readable ref so later recurrences self-verify:
+`… → **judgment:** <text> [check: <kind>:<args>]`, where `<kind>` is one of
+`custodian:<repo>:<detector>`, `ci:<repo>:<workflow>:<job>`, or
+`path:<repo>:<relpath>`. `cl ledger promote` then auto-reconfirms each recurrence
+of that signal and flags the check if it ever stops resolving (a regression).
+
+Capture only ever adds candidates. Free-text judgments (nothing to verify) stay
+manual — never auto-judge them.
 
 ## Entries
 """
