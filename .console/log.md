@@ -1,4 +1,13 @@
 # Log
+## 2026-06-26 — fix: lazy fcntl import so cl runs on Windows
+
+`reconcile/lock.py` imported `fcntl` (POSIX-only) at module load, and `cli/main.py`
+eagerly imports the reconcile subcommand — so every `cl` command (incl. `session
+start`) crashed at import on Windows with `ModuleNotFoundError: No module named 'fcntl'`.
+Made the import lazy/guarded (`try/except ImportError`) and raise a clear error only if
+`reconcile prune --apply` actually runs without fcntl. No behaviour change on POSIX.
+Unblocks session anchoring on Windows hosts.
+
 ## 2026-06-17 — feat: `cl ledger observe` + `promote` (consolidation loop, self-verifying)
 
 Closed the capture→judgment loop with two new ledger steps, both built so the

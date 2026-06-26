@@ -16,7 +16,10 @@ place after release; holding pid is recorded for diagnostics only.
 
 from __future__ import annotations
 
-import fcntl
+try:
+    import fcntl
+except ImportError:  # POSIX-only. On Windows only `reconcile prune --apply` needs
+    fcntl = None  # type: ignore[assignment]  # it; importing this module must still work.
 import os
 from contextlib import contextmanager
 from collections.abc import Iterator
@@ -38,6 +41,11 @@ def reconcile_lock(repo_root: Path) -> Iterator[None]:
     than queue behind it (the second run is a no-op anyway once the first
     lands).
     """
+    if fcntl is None:
+        raise RuntimeError(
+            "reconcile prune --apply requires POSIX fcntl file locking, "
+            "unavailable on this platform"
+        )
     lock_path = Path(repo_root) / LOCK_RELPATH
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o644)
