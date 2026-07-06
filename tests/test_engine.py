@@ -292,3 +292,15 @@ def test_on_cooldown_hook_receives_json(tmp_path: Path):
     assert payload["backend"] == "claude"
     assert payload["reset_at"].startswith("2027-01-02")
     assert payload["limit_kind"]
+
+
+def test_runtime_state_includes_limit_kinds_and_sleeping(tmp_path: Path):
+    eng = PseudoOperatorEngine(_cfg(tmp_path))
+    log = tmp_path / "s.log"
+    log.write_text("You have hit your 5-hour session limit. Try again in 1h.", encoding="utf-8")
+    cooldowns = {"claude": None, "opus": None, "codex": None}
+    eng._handle_backend_limit("claude", log, cooldowns)
+    eng.write_runtime_state(cooldowns, None)
+    state = json.loads(eng.cfg.runtime_state_path.read_text(encoding="utf-8"))
+    assert state["backend_limit_kinds"]["claude"]["limit_kind"] == "session_5h"
+    assert "sleeping_until_utc" in state
