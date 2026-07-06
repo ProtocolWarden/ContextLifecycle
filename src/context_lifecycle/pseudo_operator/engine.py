@@ -51,6 +51,10 @@ class PseudoOperatorEngine(SessionMixin):
         self._backends: dict[str, BackendSpec] = {b.name: b for b in cfg.backends}
         self._priority: list[str] = [b.name for b in cfg.backends]
         self._lineage = f"{cfg.loop_name}-loop"
+        # Per-backend limit metadata from the last cooldown, for the runtime
+        # state file (the OperatorConsole pane renders limit kind + model).
+        self._limit_meta: dict[str, dict[str, str | None]] = {}
+        self._sleeping_until: str | None = None
         cfg.state_path.mkdir(parents=True, exist_ok=True)
 
     # ── logging ───────────────────────────────────────────────────────────
@@ -190,7 +194,11 @@ class PseudoOperatorEngine(SessionMixin):
             f"{reset_dt.strftime('%Y-%m-%dT%H:%M:%SZ')} UTC; sleeping {delay}s ({delay // 60}m)"
         )
         self.cfg.schedule_path.unlink(missing_ok=True)
-        self.interruptible_sleep(delay)
+        self._sleeping_until = reset_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            self.interruptible_sleep(delay)
+        finally:
+            self._sleeping_until = None
         return True
 
     def _handle_backend_limit(
@@ -202,6 +210,7 @@ class PseudoOperatorEngine(SessionMixin):
         cooldowns[name] = reset_dt
         spec = self._backends[name]
         limit_kind, model = classify_limit_kind(log_text, model=spec.model)
+        self._limit_meta[name] = {"limit_kind": limit_kind, "model": model}
         # Global claude limits (5h session cap, account limit) apply to every
         # claude-CLI backend — cool them all so the ladder skips straight past.
         if (
@@ -325,6 +334,10 @@ class PseudoOperatorEngine(SessionMixin):
                 backend: dt.strftime("%Y-%m-%dT%H:%M:%SZ") if dt is not None else None
                 for backend, dt in cooldowns.items()
             },
+            "backend_limit_kinds": {
+                backend: dict(meta) for backend, meta in self._limit_meta.items()
+            },
+            "sleeping_until_utc": self._sleeping_until,
             "paused": self.cfg.pause_flag_path.exists(),
         }
         try:

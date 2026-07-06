@@ -1,4 +1,11 @@
 # Log
+## 2026-07-06 — loop: runtime-state parity for the OperatorConsole pane
+
+The pane renders backend_limit_kinds + sleeping_until_utc from the old OC
+controller state; the engine now emits both (per-backend limit_kind/model
+recorded at cooldown; sleeping window set around the all-backends-cooling
+sleep). Prereq for the OC consumer migration.
+
 ## 2026-07-06 — feat: PseudoOperator harness (`cl loop`) — Track B
 
 New context_lifecycle.pseudo_operator package + `cl loop` command group
