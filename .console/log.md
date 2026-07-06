@@ -1,4 +1,8 @@
 # Log
+## 2026-07-06 — release: v0.4.1 (signed loop config)
+
+Version bump for #37 so OC can pin the anchor-verified engine.
+
 ## 2026-07-06 — feat: signed loop config — the live-plane trust anchor (Track C)
 
 signing.py + `cl loop sign-config` / `verify-config` + verification in
