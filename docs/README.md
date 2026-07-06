@@ -14,3 +14,9 @@ overview and quick start.
 
 - [adapters/adapter_contract.md](adapters/adapter_contract.md) — Full adapter interface spec
 - [adapters/claude_code_adapter.md](adapters/claude_code_adapter.md) — Claude Code adapter behavior
+
+## Design
+
+- [design/pseudo_operator.md](design/pseudo_operator.md) — PseudoOperator: the
+  shared session-loop harness behind `cl loop` (mechanism here, per-repo policy
+  via the fail-closed `pseudo_operator:` config section).

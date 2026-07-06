@@ -1,4 +1,19 @@
 # Log
+## 2026-07-06 — feat: PseudoOperator harness (`cl loop`) — Track B
+
+New context_lifecycle.pseudo_operator package + `cl loop` command group
+(run/status/stop/pause/resume/signal): the shared session-loop harness
+replacing the two near-copy-paste tools/loop/controller.py files in
+OperationsCenter and a private downstream repo. Mechanism here (atomic hostname-aware lock, bounded
+session spawn, backend cooldown/fallback ladder with the battle-tested
+rate-limit parser ported verbatim, CL anchoring, ENFORCED iteration/failure
+caps, adaptive delay, pause=away/lazy trigger); policy per repo via a
+fail-closed `pseudo_operator:` config section (extra="forbid" — this is the
+activation of the previously-inert loop config schema); repo-specific code
+enters only as hook commands (pre_iteration / seed_cooldowns / on_cooldown /
+session_end). Design: docs/design/pseudo_operator.md. 23 new tests.
+Consumer migration (OC/a private downstream repo config + launcher swaps) lands in their repos.
+
 ## 2026-06-26 — fix: lazy fcntl import so cl runs on Windows
 
 `reconcile/lock.py` imported `fcntl` (POSIX-only) at module load, and `cli/main.py`
@@ -147,252 +162,7 @@ must never hold the only copy of anything worth keeping. Live-verified on PM:
 correctly keeps the still-young sessions. 11 new tests (T1 guard satisfied via direct PruneCandidate/SessionPrunePlan
 assertions); suite 280 pass.
 
-## 2026-06-06 — fix: prune apply lock + index --check freshness gate
 
-Two findings from the PlatformManifest spec audit (PM #68 train) land here:
+## Archived
 
-- **Prune lock**: `apply_plan` now takes an exclusive flock on
-  `.console/.reconcile.lock` (new `reconcile/lock.py`). Two concurrent
-  `prune --apply` runs on the same repo could interleave the archive append and
-  source trim (idempotency-by-heading races its own read); the second now fails
-  closed (`PruneLockHeld`, CLI exit 3). Cross-host stays serialized by git —
-  the lock closes the same-host window where no merge point exists.
-- **Index freshness**: `cl reconcile index --check --out <path>` compares the
-  rendered dashboard to the file and exits 1 on missing/stale (2 if --out
-  absent). PM's `console-reconciliation-status.md` claims "generated — do not
-  hand-edit" but was hand-committed; this gives hooks/CI a primitive to enforce
-  the claim. Wiring the PM-side hook is a PM follow-up.
-
-Custodian guard caught two LOWs pre-push: lock tests moved to a dedicated
-tests/test_reconcile_lock.py (flat-convention parallel test; lock.py added to
-the reconcile T1/T6/T7 exclude anchor like its siblings) and the released-lock
-test gained real assertions. 6 new tests; suite 269 pass; ruff clean.
-
-## 2026-06-04 — chore: reconcile .console — enable R1/R2 enforcement
-
-Enforce-only reconciliation pass (repo already clean + under budget).
-
-- `git grep` for scrub-target identifiers in tracked `.console`/`docs` returns empty (leak-free).
-- `.custodian/config.yaml`: added `audit.reconcile_enforce: true` so R1/R2 enforce on this reconciled repo.
-- Verified: `cl reconcile check` GREEN; custodian audit reports R1 count=0 and R2 count=0 (log.md 210 lines < 400 budget); reconcile tests pass.
-
-## 2026-05-23 — chore: onboard Custodian (config, hooks, tests)
-
-Brought the repo under the Custodian guard; drove the audit from 88 findings to 0 (clean).
-
-- `.custodian/config.yaml`: added `c13_allowed_paths` (cli/session, session/anchor, session/ids — the env-reading CLI layer) and T1/T6/T7 exclusions for `errors.py` (pure exception hierarchy) and `cli/main.py` (Typer wiring entrypoint), each with a rationale comment.
-- Code fixes (behavior-preserving): `subprocess.run` timeout in `session/anchor.py`; `json.dumps(ensure_ascii=False)` in `cli/hook.py` + `cli/session.py`; `NoReturn` on the two hook entrypoints; refactored the duplicate `_load_handoff`/`_load_checkpoint` bodies into a shared `_load_model` helper (D11).
-- Tests: renamed existing test files to the `test_<stem>.py` parallel convention; split `test_models.py` into per-model files; added real unit tests for `io/yaml_io`, `hooks/decisions`, the nested schema components (ContextRisk/Orchestrator/RelaunchMetadata/WorkerScope/Lease/GuardConfig/LoopConfig/CapsuleExclusions/StopReport), and the module-level `session/paths` helpers. Fixed N2 (`H()` → `_hook_input`) and T2 (added assert). 111 tests pass.
-- Privacy (B1): genericized references to a private consumer repository in tracked docs/examples and renamed the two files that carried the private name.
-- Workspace: added venv guard to `tests/conftest.py`; added `.hooks/pre-commit` + `.hooks/pre-push` (copied from CoreRunner); fixed `.gitignore` `.console/*` policy + un-tracked `CLAUDE.md`; added `.env.example`, `CHANGELOG.md`, `SECURITY.md`, `docs/README.md`, and README `Architecture` / `What This Is Not` sections.
-- Set `git config core.hooksPath .hooks`.
-
-## 2026-05-22 — Bump repograph pin v0.2.0 → v0.2.1 (alias resolution)
-
-Picks up `can_anchor_host` alias-resolution from RepoGraph v0.2.1. Operators may now pass canonical_name or any registered alias (snake_case dict key, case-insensitive); previously only canonical_name resolved, which masked real boundary violations behind a misleading "not registered" error.
-
-## 2026-05-22 — fix: recognize `repos_touched` in capture boundary check
-
-E2E anchor flow test caught: `capture(result={"repos_touched": [...]})` was silently skipping RepoGraph authorization because `_extract_repos` only recognized `repos`, `targets`, `target_repos`. The cross-boundary write (PM-anchored session → private-owned repo) wrote successfully when it should have been blocked.
-
-Added `repos_touched` to the recognized list. All 90 tests still pass; e2e verified that `repos_touched: ["<a-private-downstream-repo>"]` from a PM anchor now raises BoundaryViolation.
-
-Follow-up not addressed here: `RepoGraph.can_anchor_host` matches on a repo's canonical_name and rejects its snake_case repo key as "unregistered". Both forms should be acceptable for UX. Filed for a separate change in RepoGraph.
-
-## 2026-05-22 — Pin repograph to git tag v0.2.0 (was file:// local pin)
-
-Follow-up to ADR 0002 P2/P4 release. Switched `repograph` dependency from a local file:// pin (dev-only) to `git+https://github.com/ProtocolWarden/RepoGraph.git@v0.2.0`. Reproducible across machines and CI. Local editable installs (`pip install -e ../RepoGraph`) still override the pin for active development.
-
-
-## 2026-05-22 — P4: public lifecycle API (hydrate / capture / peek)
-
-Branch: `feat/p4-public-api`. Version bumped to 0.3.0.
-
-- `src/context_lifecycle/lifecycle.py` (NEW, ~220 LOC): implements `hydrate`,
-  `capture`, `peek`, and the `HydratedContext` dataclass. Reads/writes go
-  through the existing `session.paths.SessionPaths` + `io.yaml_io` helpers
-  — no new I/O primitives.
-  - `hydrate(lineage_id, work_item)` loads `active/<lineage_id>.yaml` if
-    present (resume) or initializes a fresh capsule with `status="fresh"`,
-    `created_at`, and the work_item attached. Never writes. Also includes
-    the latest checkpoint (lexicographic sort of `checkpoints/*.yaml`,
-    which coincides with chronological order per the P0.5 ISO-8601
-    filename convention) and any active handoff matching the lineage.
-  - `capture(lineage_id, result)` classifies result shape (capsule /
-    checkpoint / handoff) and writes to the corresponding subdir.
-    Pre-write: pulls every repo named in the result (top-level
-    `repo`/`repos`/`targets` + `worker_scope.repo`) and calls
-    `RepoGraph().can_anchor_host(anchor, repo)` for each. First denial
-    raises `BoundaryViolation` and nothing is written.
-  - `peek(work_item)` returns the active capsule dict for the work_item's
-    `lineage_id` (or `lineage`/`id`), or `None`. Read-only; never falls
-    back to checkpoints/handoffs.
-  - All three hard-error with `AnchorMissing` / `SessionNotStarted` when
-    env vars unset (P0.6 hard-error policy).
-- `src/context_lifecycle/__init__.py`: re-exports the new symbols; bumps
-  `__version__` to `0.3.0`.
-- `tests/test_lifecycle.py` (NEW, 18 tests): hydrate fresh / resume /
-  checkpoint pickup / anchor-unset / session-unset; capture for each
-  subdir (capsule/checkpoint/handoff); RepoGraph called per repo;
-  BoundaryViolation aborts the write atomically; no-repo capture skips
-  RepoGraph entirely; peek hit / miss / no-lineage / no-write / anchor-
-  unset; public API import smoke.
-- Suite: 72 → 90 pass.
-
-**Stop point:** staged, not committed. Parent handles git ops.
-
-## 2026-05-22 — P2: wire `cl session start` through RepoGraph
-
-Branch: `feat/p2-repograph-integration`.
-
-- `pyproject.toml`: added `repograph @ file:///home/dev/Documents/GitHub/RepoGraph`
-  as a local-path dependency (path-installed for dev; bump to pinned version
-  once RepoGraph releases v0.2.0).
-- `src/context_lifecycle/session/anchor.py`: replaced the P1 "Phase 2 not
-  implemented" stubs. `resolve_anchor_arg(None)` now calls
-  `RepoGraph().find_anchor_for_path(Path.cwd())`; bare-name args are looked
-  up via `RepoGraph().authorization().get_by_name()`. `AmbiguousAnchorError`
-  from RepoGraph is reraised as `AmbiguousAnchor` (mapped to CLI exit code 2
-  by `cli/session.py`).
-- RepoGraph is imported lazily via a `_load_repograph()` helper so tests can
-  monkeypatch it and so a missing dep surfaces as a clean
-  `ManifestNotFound` instead of an import crash.
-- `tests/test_session_anchor.py`: replaced the four "Phase 2" stub tests
-  with seven tests covering the new code paths (inference unique / none /
-  ambiguous, name lookup hit / miss, path resolution unchanged).
-- `tests/test_cli_session.py`: updated the no-arg test to use an empty
-  `REPOGRAPH_REGISTRY` for deterministic ManifestNotFound. Suite: 72 pass.
-
-## 2026-05-22 — P1 CLI bootstrap + bash hook port to Python (feat/p1-cli-bootstrap)
-
-Implemented Phase 1 of the manifest-cognition work order (ADR 0002). Ported `pre_tool_use.sh` (330 lines bash) and `stop.sh` (116 lines bash) to a Python `cl` CLI shipped from CL's own `.venv/`. Bash hooks under `adapters/claude/hooks/` left untouched as the transition fallback.
-
-**Surface delivered:**
-- `bin/cl` — stable wrapper script (P0.3 contract); resolves `.venv/bin/cl`, falls back to PATH.
-- `cl session start [MANIFEST] [--json|--shell|--require-clean]` with locked exit codes (0/1/2/3/4 per P0.2). No-arg invocation hard-errors with "Phase 2" guidance (RepoGraph inference deferred).
-- `cl session show` / `cl session end [--archive]` for env lifecycle and per-session subdir archival.
-- `cl hook pre_tool_use` / `cl hook stop` — read JSON from stdin, exit 0/2 per Claude Code hook contract, emit `{"decision":"block","reason":...}` JSON on block.
-
-**Architecture:**
-- Pydantic v2 models (`models/`) mirror the YAML schemas field-for-field; `extra="allow"` so unknown fields don't break loads. `WorkerHandoff.is_lease_expired()` accepts both `lease.expires_at` and the bash-era top-level `expires_at`.
-- `hooks/pre_tool_use.py` is a pure decision function over loaded state, returning `DecisionResult(decision, reason, warnings)`. CLI layer maps to exit codes + JSON.
-- Per-session subdir layout (`<anchor>/.context/sessions/<sid>/{active,checkpoints,handoffs}/`) implemented in `session/paths.py` per P0.5.
-- Hard error on missing `CL_ANCHOR` (P0.6); same for `CL_SESSION_ID`. No fallback.
-
-**Test parity:** 69 pytest tests covering every block/warn branch of the bash decision tree (require_capsule, lease expiry, forbidden/allowed paths, mutation_policy, max_subagents, high_parallelism, subagent_heavy, checkpoint_stale, long_lived_session, reload_scope_too_large), plus model round-trips, session id/anchor/paths, CLI session + hook commands. All green.
-
-**Stop point:** changes staged (not committed). Parent reviews + commits. P2 (RepoGraph registry + `can_anchor_host` + `find_anchor_for_path`) is the next gate; once that lands, `cl session start` no-arg inference and the manifest-name lookup activate.
-
-## 2026-05-22 — Manifest concept + CL/Manifest/RepoGraph contract split (design session)
-
-Walked the architecture for how CL should integrate with executors and where cognition state actually lives. Result: a new repo-type vocabulary and a clean three-way contract split.
-
-**Repo type: "manifest"** — locked in as a first-class repo category. A manifest is a repo whose job is to (1) declare what's in an ecosystem, (2) host that ecosystem's cognition state, and (3) anchor sessions that operate on it. Current instances: `PlatformManifest` (public scope), `PrivateManifest` (private scope, superset). The flow rules generalize beyond cognition to any state a manifest hosts.
-
-**Visibility / info-flow rule:** a manifest can host state involving any repo at or below its visibility scope. Private can host cognition about public repos; public cannot host cognition about private ones. RepoGraph enforces this on writes.
-
-**Contract split:**
-- **ContextLifecycle (CL)** — owns schema + I/O + policy enforcement (the 330-line `pre_tool_use.sh` decision tree, rewritten in Python and shipped as a CLI from CL's own `.venv/`)
-- **RepoGraph** — owns repo↔manifest authorization; validates every cognition write against the active session anchor's scope
-- **Manifest** — session anchor + `.context/` host; data lives here, not scattered across consumer repos
-- **Consumer repo (executors, etc.)** — ships a ~1-line shim hook (`exec "$CL_HOME/.venv/bin/cl" hook pre_tool_use "$@"`) and nothing else; no `.context/` data, no CL imports
-
-**Session anchoring (two-layer):**
-1. *Picking* is UX — operator launches with an explicit anchor via `cl session start <manifest>` (sets `CL_ANCHOR` env var in the session shell). Hard error if missing — no silent unguarded sessions.
-2. *Enforcing* is RepoGraph — every write is validated against the anchor's scope, so mis-selects are caught after the fact. Picking and enforcing are decoupled.
-
-**Reverts implied:**
-- TE / DE / CE all have shallow CLP scaffolding (config + hooks, no Python integration) — to be removed once the CL CLI + shim pattern lands. They're library-only, so harness hooks are unnecessary there; the shim will be the only CL surface in those repos.
-- Anything CL-shaped reaching into executor *code* (none exists today) stays banned. Executors don't import CL.
-
-**`.console/` vs `.context/`** — `.console/` stays per-repo (operational truth: task/guidelines/backlog/log). `.context/` moves to the anchoring manifest (durable cognition: capsules/checkpoints/handoffs). `.console/` compaction is a future need, not addressed here.
-
-**Stop point — implementation specs still open:**
-- Final `CL_ANCHOR` env var name + `cl session start` CLI signature (incl. `--json`, RepoGraph-inferred default behavior)
-- Shim's resolution path for `cl` (`CL_HOME` env, PATH symlink, or both)
-- RepoGraph's authorization schema — how PM/PrivM declare repo membership in a way RepoGraph can read for visibility checks
-- Layout of manifest `.context/` when hosting multiple concurrent work loops (capsule namespacing across repos)
-
-Architectural design considered done. Next session: pick implementation specs and either update ADR 0005 or write a new ADR for the manifest concept.
-
-## 2026-05-21 — Gitignore .console/.context
-
-`.console/.context` is regenerated on every session launch (timestamp changes unconditionally). Added it to `.gitignore` and untracked it with `git rm --cached`. All other repos (OC, RxP, etc.) already gitignore it; CLP was the only outlier. Source truth remains `.console/{task,guidelines,backlog,log}.md`.
-
-## 2026-05-21 — Add closing fence to console-context block
-
-Added <!-- /console-context --> end marker so OperatorConsole only replaces its
-managed block and leaves repo-owned content below it untouched.
-
-_Chronological continuity log. Decisions, stop points, what changed and why._
-_Not a task tracker — that's backlog.md. Keep entries concise and dated._
-
-## Recent Decisions
-
-_Log significant choices here so they survive context resets._
-
-| Decision | Rationale | Date |
-|----------|-----------|------|
-| [what was decided] | [why] | [date] |
-
-## Stop Points
-
-_Where did you leave off? What should be verified next session?_
-
-- [what to pick up next]
-
-## Notes
-
-_Free-form scratch. Clear periodically — old entries can be deleted once no longer relevant._
-
----
-
-## 2026-05-24 — Hooks hard-require CL_ANCHOR (no CWD fallback)
-
-- pre_tool_use.sh + stop.sh now resolve .context under CL_ANCHOR (the manifest anchor) instead of git-toplevel/pwd. pre_tool_use BLOCKS when CL_ANCHOR is unset; stop.sh skips gracefully. Closes the leak that let un-anchored workspace-root .context exist (now retired). Added hook test C-23 (unset→block); 23/23 pass.
-- Updated verification/cross-pr-wiring-review.md G-08: workspace-root .context retired.
-
-## 2026-05-24 — Tracked adapter installer (Phase 1 of multi-CLI CL integration)
-
-- Added adapters/install.sh (committed, idempotent, re-syncs drift): copies the canonical claude hooks into a repo .claude/hooks/ and merges the hook wiring into settings.json (preserving other keys). Fixes the divergent per-repo hook copies + the untracked-settings problem. --cli flag is extensible; codex/aider skip gracefully until their adapters land (phase 2/3). Test: adapters/install_test.sh (6/6).
-- Foundation for: codex adapter (plugin/MCP), aider adapter (session-boundary), and rewiring OC panes + downstream loops to anchor via `cl session start` (= owning manifest, RepoGraph-resolved). RepoGraph already provides repo→manifest (repo_owner map).
-
-## 2026-05-24 — `cl context` CLI (Phase 2: session-boundary cognition)
-
-- Added `cl context hydrate|capture|peek` (cli/context.py) wrapping lifecycle.hydrate/capture/peek, so non-hook CLIs (aider; codex until a native plugin) integrate at session edges. JSON args accept literal/@file/stdin. Tests: tests/test_context_cli.py (7). cli/context.py added to T1/T6/T7 shim exclusions (Typer wiring; _load_json unit-tested, commands via CliRunner).
-- NOTE: codex native per-tool plugin deferred — codex hooks are a plugin (post-cutoff format); codex uses session-boundary for now (decision-compliant fallback).
-
-## 2026-06-03 — Clear pre-existing ruff debt blocking CI
-
-CL main CI has been red since 2026-05-30 on `ruff check .` (10 errors: unused imports in cli/hook.py, cli/session.py, and several test files; 2 E402 in conftest.py). Autofixed the unused imports; conftest's two imports are intentionally after the venv guard, so marked `# noqa: E402`. Pure lint cleanup, no behavior change — unblocks a green CI for the context-engine productionization PR.
-
-## 2026-06-03 — Productionize the context-injection engine into CL
-
-Moved the context-injection engine from its PlatformManifest prototype home (.context/.engine/) into CL as the canonical source, per the work-order productionization track (spec §1/§6). New: src/context_lifecycle/context_engine/ (route, cold, consolidate, distill, campaign, prune — copied byte-identical from PM; they already carry dual-mode importlib shims so they run both as a package and as scaffolded standalone files), plus __init__.py (ENGINE_DIR/ENGINE_FILES/engine_source_files) and scaffold.py (init_context). Added `cl context init` (cli/context.py): idempotently scaffolds .context/routes.yaml (stamped engine_compat), docs/inject/README, .context/knowledge/README, and copies the engine into the repo's .context/.engine/ (engine refreshed each run; authored state never clobbered). Ported the three validated hook blocks into CL's CANONICAL adapters/claude/hooks/{pre_tool_use,stop}.sh so install.sh propagates them to every repo (PM's splices were a clean superset of the adapter base, so copied verbatim). Ported engine tests (test_context_router/cold_store/consolidate) repointed at the package; PM-specific consumer-content tests dropped/made hermetic; added test_scaffold.py. Custodian: marked context_engine's 6 modules VENDORED (shipped byte-identical to consumers, run by path, tested via importlib) — excluded from src-quality detectors with documented rationale; prune.py added to c13_allowed_paths. 227 tests green, ruff + custodian clean. Engine scaffold byte-match test asserts the package stays identical to what's scaffolded. NOTE: PM's .context/.engine/ should be re-synced via `cl context init` so it tracks CL going forward (reconciliation step).
-
-## 2026-06-03 — Make CL CI green (venv guard skip + SPDX on 2 pre-existing files)
-
-The red-since-5/30 CI had two more pre-existing breakages beyond ruff: (1) the Test (pytest) job ran pytest outside the repo .venv, so conftest's venv guard exit-2'd every run — fixed by setting CUSTODIAN_SKIP_VENV_GUARD=1 on the CI test step (matches PlatformManifest's ci.yml); (2) License headers failed on two pre-existing files missing SPDX (adapters/claude/hooks/tests/validate_examples.py, src/context_lifecycle/__init__.py) — added headers. With these + the ruff cleanup, CL CI goes green for the first time since the workflow was added.
-
-## 2026-06-03 — Add SPDX headers to all source files (license-headers CI debt)
-
-The License headers CI job had been red since 5/30 on 36 pre-existing .py files lacking SPDX-License-Identifier (most of CL's existing src + tests). Added the standard AGPL SPDX + Copyright header to all of them (after shebang where present). Purely mechanical; ruff + 227 tests still green. With this, all three CI jobs (ruff, pytest, license) pass — CL CI green for the first time since the workflow landed.
-
-## 2026-06-04 — Fix reconcile private-manifest auto-discovery (env-free fan-out)
-
-`cl reconcile` needed `$PRIVATE_MANIFEST_DIR` set explicitly because the discovery path guessed a RepoGraph API that doesn't exist (`Registry.resolved_paths()`, single `discover_manifest_yaml`). Fixed to the real API: iterate `Registry.load().manifests` (the registered repo roots) and use `discover_all_manifest_yamls(root)`, treating a root as private when any of its YAMLs is named `private_manifest*` (basename match, no hardcoded repo name — I2). Added the same registry fallback to `scrub.py`'s artifact resolution, so the scrub vocabulary also loads with no env vars. Verified env-free: discovery resolves the registered private manifest, vocab loads 14 names, `cl reconcile check` on Custodian is GREEN with no env set. 256 tests (isolated the "no source" test from the live registry).
-
-## 2026-06-04 — Add `cl reconcile` (Layer B of the .console reconciliation spec)
-
-New `src/context_lifecycle/reconcile/` package + `cl reconcile` Typer group: `check` (consolidate-before-prune gate — blocks if a done item lacks an existing doc, or any field carries a scrub-target name), `prune` (move completed history to the private side via $PRIVATE_MANIFEST_DIR/discovery, trim source to active+recent+pointer, one CHANGELOG line per item; dry-run default, idempotent, refuses unless check green), `index` (dashboard; public repos itemized, private as opaque count). Scrub vocabulary read from the single boundary-artifact source — no hardcoded private-manifest literal in source (env/discovery only). 29 tests. Custodian config: c13-allowed the two env-readers and T-class-exempted the package (CL uses flat tests/, not the mirrored layout T7 expects — same precedent as the engine/CLI shims). Also scrubbed two pre-existing private-name refs out of this log (CL is public; would trip the new R2). Built via the console-reconciliation workflow; reviewed + custodian-cleaned by hand (sole remaining finding is the pre-existing environmental B2 boundary-artifact-presence check).
-
-## 2026-06-04 — reconcile: private-repo scrub exemption (self-name signal)
-Check/prune were public-repo-shaped: a private repo reconciling itself tripped the scrub gate on its own name, and prune would have genericized the repo's own name inside its own tree. New rule: a repo whose own name matches the scrub vocabulary IS a private repo → scrub-leak gate skipped (warning emitted), retained-content scrub + CHANGELOG genericization skipped. DOC GAP gate unchanged. Motivating case: the private downstream repo's 6.8k-line .console/log.md reconciliation.
-
-## 2026-06-04 — reconcile: detect the private-manifest repo itself as private
-Second private-signal: the private-manifest repo's own name is deliberately public-safe
-(never in the scrub vocabulary), so the self-name exemption (#20) didn't fire when
-reconciling it — and prune would have scrubbed OTHER private repos' names out of its
-retained .console, the one surface where those names are the point. New `is_private_root()`
-in privacy.py (repo root resolves to the private-manifest root) ORed into check/prune's
-private detection. Motivating case: reconciling the private-manifest repo's own .console.
+_Archived completed history → `/home/dev/Documents/GitHub/PrivateManifest/archive/console/ContextLifecycle/log-2026-07-06.md`_
