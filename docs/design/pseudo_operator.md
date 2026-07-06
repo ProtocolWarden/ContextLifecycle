@@ -55,11 +55,32 @@ consumes it.
 exiting until `cl loop resume`. This is the mechanizable operator-present
 signal; the stop flag remains the terminal one.
 
-## No-self-rewrite (spec §4.5)
+## Signed config — the live-plane trust anchor (Track C)
 
-Not enforced here — that is Track C's restorer (deploy-only-from-signed-
-reference). This package keeps the config a plain file so the restorer can
-own its write path.
+Implemented in `signing.py` + the `cl loop sign-config` / `verify-config`
+commands, following deploy-only-from-signed-reference:
+
+- The operator signs the `pseudo_operator:` section ONCE, offline
+  (`cl loop sign-config --key <ed25519 PEM>` — same key conventions as the OC
+  EVAL corpus; the private key never touches a fleet host). This writes
+  `pseudo_operator.signed.json` + `.sig` beside the config; the pubkey hex is
+  pinned in `operator_pubkey.ed25519` (committed, CODEOWNERS-protected).
+- `cl loop run` verifies at launch: **ok** runs the live section (it IS the
+  reference); **drift** runs the SIGNED REFERENCE and flags the divergence —
+  restore-by-consumption, so the fleet has no write path into its own
+  guardrails and "restore vs. change" needs no intent-classifier; **bad
+  signature** always refuses; **unsigned** warns loudly (pre-anchoring mode)
+  and refuses when the launcher passes `--require-signed`.
+- The restorer check is `cl loop verify-config` (exit 0 ok / 3 drift /
+  4 bad signature / 5 unsigned) — run it from cron/systemd for continuous
+  detection; a legitimate change is a new `sign-config` by the operator.
+- Runtime state exposes `signed_status` so the status pane shows the anchor
+  posture.
+
+Threat notes: deleting the reference/pubkey locally downgrades to unsigned —
+loud, refusable via `--require-signed` at the launcher (outside the config the
+agent can reach), and the committed truth is restored by git. Signature
+verification with the pinned pubkey is the no-self-rewrite invariant (§4.5).
 
 ## Migration
 

@@ -55,6 +55,8 @@ class PseudoOperatorEngine(SessionMixin):
         # state file (the OperatorConsole pane renders limit kind + model).
         self._limit_meta: dict[str, dict[str, str | None]] = {}
         self._sleeping_until: str | None = None
+        # Trust-anchor status set by the CLI (Track C): ok | drift | unsigned.
+        self.signed_status: str = "unsigned"
         cfg.state_path.mkdir(parents=True, exist_ok=True)
 
     # ── logging ───────────────────────────────────────────────────────────
@@ -338,6 +340,7 @@ class PseudoOperatorEngine(SessionMixin):
                 backend: dict(meta) for backend, meta in self._limit_meta.items()
             },
             "sleeping_until_utc": self._sleeping_until,
+            "signed_status": self.signed_status,
             "paused": self.cfg.pause_flag_path.exists(),
         }
         try:

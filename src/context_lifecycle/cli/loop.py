@@ -31,6 +31,7 @@ from context_lifecycle.pseudo_operator import (
     PseudoOperatorEngine,
     load_pseudo_operator_config,
 )
+from context_lifecycle.pseudo_operator.config import load_verified_config
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -48,10 +49,77 @@ def _load(config: Path):
 
 
 @app.command("run")
-def run_cmd(config: Path = _CONFIG_OPT) -> NoReturn:
-    """Run the loop (foreground). Refuses to start on an invalid config."""
-    cfg = _load(config)
-    raise typer.Exit(code=PseudoOperatorEngine(cfg).run())
+def run_cmd(
+    config: Path = _CONFIG_OPT,
+    require_signed: bool = typer.Option(
+        False,
+        "--require-signed",
+        help="Refuse to start unless the config is anchored (signed reference "
+        "verifies). Launchers pass this once the operator has signed.",
+    ),
+) -> NoReturn:
+    """Run the loop (foreground). Refuses to start on an invalid config.
+
+    Trust anchor (Track C): with a signed reference present, the engine runs
+    the VERIFIED section — on drift it consumes the reference (not the live
+    section) and flags the divergence; a bad signature always refuses.
+    """
+    try:
+        cfg, signed_status, detail = load_verified_config(
+            config, require_signed=require_signed
+        )
+    except (ValueError, OSError) as exc:
+        typer.echo(f"config error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if signed_status == "drift":
+        typer.echo(
+            f"[TRUST] live config DIVERGES from the signed reference — running the "
+            f"reference (restore-by-consumption): {detail}",
+            err=True,
+        )
+    elif signed_status == "unsigned":
+        typer.echo(
+            f"[TRUST] loop config is NOT anchored ({detail}) — running unsigned; "
+            "sign it with `cl loop sign-config`",
+            err=True,
+        )
+    engine = PseudoOperatorEngine(cfg)
+    engine.signed_status = signed_status
+    raise typer.Exit(code=engine.run())
+
+
+@app.command("sign-config")
+def sign_config_cmd(
+    config: Path = _CONFIG_OPT,
+    key: Path = typer.Option(
+        ...,
+        "--key",
+        help="Operator ed25519 PRIVATE key (PEM) — offline only, never on a fleet host.",
+    ),
+) -> None:
+    """OPERATOR TOOL: snapshot + sign the pseudo_operator section (offline)."""
+    from context_lifecycle.pseudo_operator.signing import sign_reference
+
+    try:
+        ref = sign_reference(config, key)
+    except (ValueError, OSError) as exc:
+        typer.echo(f"signing failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(f"Signed reference written: {ref} (+ .sig). Commit both.")
+
+
+@app.command("verify-config")
+def verify_config_cmd(config: Path = _CONFIG_OPT) -> NoReturn:
+    """Verify the live section against the signed reference (restorer check).
+
+    Exit codes: 0 ok / 3 drift / 4 bad signature / 5 unsigned.
+    """
+    from context_lifecycle.pseudo_operator.signing import verify_reference
+
+    result = verify_reference(config)
+    typer.echo(f"{result.status}: {result.detail}")
+    codes = {"ok": 0, "drift": 3, "bad_signature": 4, "unsigned": 5}
+    raise typer.Exit(code=codes[result.status])
 
 
 @app.command("status")
