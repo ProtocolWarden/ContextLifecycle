@@ -228,10 +228,50 @@ def load_pseudo_operator_config(config_file: Path) -> PseudoOperatorConfig:
     return PseudoOperatorConfig.model_validate(section)
 
 
+def load_verified_config(
+    config_file: Path, *, require_signed: bool = False
+) -> tuple[PseudoOperatorConfig, str, str]:
+    """Load the loop config through the trust anchor (Track C).
+
+    Returns ``(config, signed_status, detail)`` where signed_status is
+    ok | drift | unsigned. Enforcement:
+
+    - ``ok``: run the live section (it IS the reference).
+    - ``drift``: run the SIGNED REFERENCE, not the live section — restore-by-
+      consumption; the caller logs the divergence loudly.
+    - ``bad_signature``: raise — a present-but-unverifiable reference means the
+      anchor is compromised or corrupt; never fall back to the live section.
+    - ``unsigned``: raise when ``require_signed``; otherwise run the live
+      section (pre-anchoring mode; the caller warns).
+    """
+    from .signing import verify_reference
+
+    result = verify_reference(config_file)
+    if result.status == "bad_signature":
+        raise ValueError(f"signed loop config FAILED verification: {result.detail}")
+    if result.status == "unsigned":
+        if require_signed:
+            raise ValueError(
+                f"--require-signed set but the loop config is not anchored ({result.detail}); "
+                "sign it with `cl loop sign-config`"
+            )
+        return load_pseudo_operator_config(config_file), "unsigned", result.detail
+    if result.status == "drift":
+        section = dict(result.reference or {})
+        if "repo_root" not in section:
+            parent = config_file.resolve().parent
+            section["repo_root"] = str(
+                parent.parent if parent.name in {".context", ".console"} else parent
+            )
+        return PseudoOperatorConfig.model_validate(section), "drift", result.detail
+    return load_pseudo_operator_config(config_file), "ok", result.detail
+
+
 __all__ = [
     "BackendSpec",
     "DelayPolicy",
     "HookCommands",
     "PseudoOperatorConfig",
     "load_pseudo_operator_config",
+    "load_verified_config",
 ]

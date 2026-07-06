@@ -1,4 +1,17 @@
 # Log
+## 2026-07-06 — feat: signed loop config — the live-plane trust anchor (Track C)
+
+signing.py + `cl loop sign-config` / `verify-config` + verification in
+`cl loop run`: deploy-only-from-signed-reference for the pseudo_operator
+section. ed25519 (EVAL key conventions; private key off-infra; pubkey hex
+pinned beside the config, CODEOWNERS-protected). Drift = run the SIGNED
+reference (restore-by-consumption, no fleet write path into its own
+guardrails); bad signature = refuse; unsigned = loud warn, refusable with
+--require-signed at the launcher. Runtime state gains signed_status.
+9 tests incl. tamper/wrong-key/drift-consumption. cryptography made an
+explicit dep. Consumers anchor via the operator signing ceremony (runbook in
+docs/design/pseudo_operator.md).
+
 ## 2026-07-06 — release: v0.4.0 (PseudoOperator harness)
 
 Version bump for the `cl loop` / pseudo_operator package (#34/#35) so
