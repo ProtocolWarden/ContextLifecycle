@@ -1,4 +1,9 @@
 # Log
+## 2026-07-06 — release: v0.4.0 (PseudoOperator harness)
+
+Version bump for the `cl loop` / pseudo_operator package (#34/#35) so
+consumers can pin it (OC moves its git-dep pin to v0.4.0).
+
 ## 2026-07-06 — loop: runtime-state parity for the OperatorConsole pane
 
 The pane renders backend_limit_kinds + sleeping_until_utc from the old OC
