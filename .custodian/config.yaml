@@ -41,6 +41,11 @@ audit:
     # private-manifest literal in source). This is the config/entry layer.
     - "src/context_lifecycle/reconcile/privacy.py"
     - "src/context_lifecycle/reconcile/scrub.py"
+    # pseudo_operator/sessions.py is the PROCESS-SPAWN layer: it copies the
+    # full environment for child agent sessions (the whole point is passing the
+    # operator env through) and resolves CL_HOME exactly like cli/session.py
+    # (already allowlisted above) for non-interactive contexts.
+    - "src/context_lifecycle/pseudo_operator/sessions.py"
 
   exclude_paths:
     # ----------------------------------------------------------------------
