@@ -1,4 +1,15 @@
 # Log
+## 2026-07-07 — fix: env_file shell sourcing (command substitution)
+
+First live OC run of `cl loop` flagged an invalid GITHUB_TOKEN: the env file
+defines it via `$(gh auth token ...)`, which the literal line parse in
+`_session_env` handed to sessions unexpanded. Env files are `source`d by the
+repos' shell wrappers, so the engine now resolves them the same way — source
+in a throwaway bash (`set -a; . file; env -0`, 60s timeout) and setdefault
+the resulting vars (process env still wins). Literal parse kept as the
+fallback when the shell fails. 2 new tests (substitution resolves; fallback
+stays literal).
+
 ## 2026-07-06 — release: v0.4.1 (signed loop config)
 
 Version bump for #37 so OC can pin the anchor-verified engine.
