@@ -294,6 +294,21 @@ def test_on_cooldown_hook_receives_json(tmp_path: Path):
     assert payload["limit_kind"]
 
 
+def test_hook_stderr_surfaced_in_loop_log_on_success(tmp_path: Path):
+    """Hooks log actions via logging → stderr; success must not discard them
+    (the self-update pull/restart line was invisible in the loop log)."""
+    script = tmp_path / "hook.py"
+    script.write_text(
+        "import sys\nprint('code updated abc->def - restarting watchers', file=sys.stderr)\n"
+    )
+    eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"pre_iteration": ["python3", str(script)]}))
+    logged: list[str] = []
+    eng._log = logged.append  # type: ignore[method-assign]
+    out = eng._run_hook("pre_iteration", eng.cfg.hooks.pre_iteration)
+    assert out == ""
+    assert any("restarting watchers" in line for line in logged)
+
+
 def test_runtime_state_includes_limit_kinds_and_sleeping(tmp_path: Path):
     eng = PseudoOperatorEngine(_cfg(tmp_path))
     log = tmp_path / "s.log"
