@@ -124,6 +124,12 @@ class SessionMixin:
         if out.returncode != 0:
             self._log(f"hook {name} exited {out.returncode}: {out.stderr.strip()[:200]}")
             return None
+        err = out.stderr.strip()
+        if err:
+            # Hooks log actions (e.g. self-update pull + watcher restart) via
+            # logging → stderr; surface the tail so deploys are visible in the
+            # loop log instead of silently discarded on success.
+            self._log(f"hook {name}: {err.splitlines()[-1][:200]}")
         return out.stdout
 
     def _seed_cooldowns(self, cooldowns: dict[str, datetime | None]) -> None:

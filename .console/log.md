@@ -1,4 +1,12 @@
 # Log
+## 2026-07-07 — fix: surface hook stderr in the loop log on success
+
+Hooks log their actions via logging → stderr (e.g. OC self-update's
+"pulling and restarting watchers"), but _run_hook discarded stderr unless
+the hook FAILED — deploys were invisible in the loop log and had to be
+reconstructed from ps timestamps. On success the stderr tail (last line,
+200 chars) is now logged as `hook <name>: ...`.
+
 ## 2026-07-07 — release: v0.4.2 (env_file shell sourcing)
 
 Version bump for #39 so consumer pins pick up the token fix.
