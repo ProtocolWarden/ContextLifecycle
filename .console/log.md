@@ -1,4 +1,8 @@
 # Log
+## 2026-07-07 — release: v0.4.2 (env_file shell sourcing)
+
+Version bump for #39 so consumer pins pick up the token fix.
+
 ## 2026-07-07 — fix: env_file shell sourcing (command substitution)
 
 First live OC run of `cl loop` flagged an invalid GITHUB_TOKEN: the env file
