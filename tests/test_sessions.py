@@ -83,3 +83,39 @@ def test_env_file_sourced_without_overriding(tmp_path: Path, monkeypatch):
     env = eng._session_env("claude", {})
     assert env["FOO"] == "bar"
     assert env["BAZ"] == "preexisting"  # setdefault: process env wins
+
+
+def test_env_file_command_substitution_resolves(tmp_path: Path, monkeypatch):
+    """The regression behind OC's invalid-token flag: env files use $(...)."""
+    monkeypatch.setattr(sessions, "_resolve_command", lambda c: None)
+    monkeypatch.delenv("TOKEN_VIA_SUBST", raising=False)
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "export TOKEN_VIA_SUBST=$(echo resolved-secret)\n"
+        "export DERIVED=$TOKEN_VIA_SUBST-suffix\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "prompt.txt").write_text("p", encoding="utf-8")
+    cfg = PseudoOperatorConfig(
+        loop_name="t",
+        repo_root=tmp_path,
+        session_prompt_file=Path("prompt.txt"),
+        env_file=Path(".env.local"),
+    )
+    eng = PseudoOperatorEngine(cfg)
+    env = eng._session_env("claude", {})
+    assert env["TOKEN_VIA_SUBST"] == "resolved-secret"  # NOT the literal $(...)
+    assert env["DERIVED"] == "resolved-secret-suffix"
+
+
+def test_env_file_vars_literal_fallback(tmp_path: Path, monkeypatch):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text("export A=$(echo x)\nB='lit'\n", encoding="utf-8")
+
+    def _boom(*a, **k):
+        raise OSError("no bash")
+
+    monkeypatch.setattr(sessions.subprocess, "run", _boom)
+    vars_ = sessions._env_file_vars(env_file)
+    assert vars_["B"] == "lit"
+    assert vars_["A"] == "$(echo x)"  # literal fallback, no expansion

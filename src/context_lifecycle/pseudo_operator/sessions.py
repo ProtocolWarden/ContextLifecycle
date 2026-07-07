@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -50,6 +51,55 @@ def _command_available(command: str) -> bool:
 
 
 _HOOK_TIMEOUT_S = 300
+_ENV_FILE_TIMEOUT_S = 60
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _env_file_vars(env_file: Path) -> dict[str, str]:
+    """Variables an env file defines, resolved with real shell semantics.
+
+    Env files in the wild use ``export``, quoting, and command substitution
+    (e.g. ``GITHUB_TOKEN=$(gh auth token)``) — the same files are ``source``d
+    by the repos' shell wrappers. A literal line parse hands sessions the
+    unexpanded ``$(...)`` string as a credential, so source the file in a
+    throwaway shell and read back the resulting environment. Falls back to
+    the literal parse if the shell fails (missing bash, timeout, bad file).
+    """
+    try:
+        proc = subprocess.run(
+            ["bash", "-c", 'set -a; . "$1" >/dev/null 2>&1; env -0', "bash", str(env_file)],
+            capture_output=True,
+            timeout=_ENV_FILE_TIMEOUT_S,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return _env_file_vars_literal(env_file)
+    if proc.returncode != 0 or not proc.stdout:
+        return _env_file_vars_literal(env_file)
+    result: dict[str, str] = {}
+    for entry in proc.stdout.split(b"\0"):
+        if not entry:
+            continue
+        key_b, sep, value_b = entry.partition(b"=")
+        if not sep:
+            continue
+        key = key_b.decode("utf-8", errors="replace")
+        if _ENV_KEY_RE.match(key):
+            result[key] = value_b.decode("utf-8", errors="replace")
+    return result
+
+
+def _env_file_vars_literal(env_file: Path) -> dict[str, str]:
+    """Fallback: literal ``KEY=VALUE`` line parse (no expansion)."""
+    result: dict[str, str] = {}
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[len("export "):]
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            result[k.strip()] = v.strip().strip("'\"")
+    return result
 
 
 class SessionMixin:
@@ -212,13 +262,8 @@ class SessionMixin:
         env = os.environ.copy()
         env_file = self.cfg.resolved_env_file
         if env_file is not None and env_file.exists():
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if line.startswith("export "):
-                    line = line[len("export "):]
-                if line and not line.startswith("#") and "=" in line:
-                    k, _, v = line.partition("=")
-                    env.setdefault(k.strip(), v.strip().strip("'\""))
+            for k, v in _env_file_vars(env_file).items():
+                env.setdefault(k, v)
         env.update(anchor_vars)
         cli = self._cli_for(self._backends[name])
         executable = _resolve_command(cli)
