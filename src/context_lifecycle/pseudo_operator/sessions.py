@@ -153,6 +153,34 @@ class SessionMixin:
                 cooldowns[backend] = dt
                 self._log(f"Seeded {backend} cooldown until {iso} (hook).")
 
+    def _budget_guard(self, cooldowns: dict[str, datetime | None]) -> None:
+        """Merge budget-horizon cooldowns from the ``budget_guard`` hook.
+
+        Extend-only: a budget horizon may add or lengthen a backend's
+        cooldown but never shorten one — a real limit reset must not be
+        masked by a cheaper budget estimate.
+        """
+        out = self._run_hook("budget_guard", self.cfg.hooks.budget_guard)
+        if not out:
+            return
+        try:
+            horizons = json.loads(out)
+        except json.JSONDecodeError:
+            self._log("budget_guard hook produced non-JSON output — ignored.")
+            return
+        now = datetime.now(timezone.utc)
+        for backend, iso in horizons.items():
+            if backend not in cooldowns or not iso:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            current = cooldowns.get(backend)
+            if dt > now and (current is None or dt > current):
+                cooldowns[backend] = dt
+                self._log(f"Budget guard: {backend} held until {iso}.")
+
 
     def _anchor_via_cl(self, env: dict[str, str]) -> None:
         try:

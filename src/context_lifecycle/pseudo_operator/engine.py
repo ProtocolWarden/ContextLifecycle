@@ -405,6 +405,8 @@ class PseudoOperatorEngine(SessionMixin):
                 self._run_hook("pre_iteration", self.cfg.hooks.pre_iteration)
 
                 self._clear_expired_cooldowns(cooldowns)
+                if self.cfg.hooks.budget_guard:
+                    self._budget_guard(cooldowns)
                 backend = self._select_backend(cooldowns)
                 self.write_runtime_state(cooldowns, backend)
                 if backend is None:
