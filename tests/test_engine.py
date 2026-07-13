@@ -273,6 +273,41 @@ def test_seed_cooldowns_hook(tmp_path: Path):
     assert cooldowns["codex"] is None
 
 
+def test_budget_guard_hook_extends_cooldown(tmp_path: Path):
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    script = tmp_path / "guard.py"
+    script.write_text(
+        f"import json; print(json.dumps({{'claude': '{future}', 'opus': '{future}', 'codex': None}}))"
+    )
+    eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"budget_guard": ["python3", str(script)]}))
+    cooldowns = {"claude": None, "opus": None, "codex": None}
+    eng._budget_guard(cooldowns)
+    assert cooldowns["claude"] is not None and cooldowns["opus"] is not None
+    assert cooldowns["codex"] is None
+
+
+def test_budget_guard_never_shortens_a_real_cooldown(tmp_path: Path):
+    """A cheap budget estimate must not mask a longer real limit reset."""
+    near = (datetime.now(timezone.utc) + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    script = tmp_path / "guard.py"
+    script.write_text(f"import json; print(json.dumps({{'claude': '{near}'}}))")
+    eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"budget_guard": ["python3", str(script)]}))
+    real_reset = datetime.now(timezone.utc) + timedelta(hours=3)
+    cooldowns = {"claude": real_reset, "opus": None, "codex": None}
+    eng._budget_guard(cooldowns)
+    assert cooldowns["claude"] == real_reset
+
+
+def test_budget_guard_null_output_leaves_cooldowns_alone(tmp_path: Path):
+    script = tmp_path / "guard.py"
+    script.write_text("import json; print(json.dumps({'claude': None, 'opus': None}))")
+    eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"budget_guard": ["python3", str(script)]}))
+    real_reset = datetime.now(timezone.utc) + timedelta(hours=1)
+    cooldowns = {"claude": real_reset, "opus": None, "codex": None}
+    eng._budget_guard(cooldowns)
+    assert cooldowns["claude"] == real_reset and cooldowns["opus"] is None
+
+
 def test_on_cooldown_hook_receives_json(tmp_path: Path):
     out_file = tmp_path / "hook_out.json"
     script = tmp_path / "hook.py"

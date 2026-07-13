@@ -218,3 +218,12 @@ assertions); suite 280 pass.
 ## Archived
 
 _Archived completed history → `/home/dev/Documents/GitHub/PrivateManifest/archive/console/ContextLifecycle/log-2026-07-06.md`_
+
+## 2026-07-13 — budget_guard hook (v0.4.3)
+
+Operator directive: the OC fleet+loop+supervision consumed a full claude session_5h
+bucket; the system must leave ~25% unspent. New per-iteration budget_guard hook (run
+before backend selection; stdout {backend: iso|null} merged EXTEND-ONLY into the
+cooldown table so a budget horizon never masks a real limit reset). OC's consumer:
+`loop_bridge budget-guard` (OC #452) — over-budget looks like a cooldown, ladder
+diverts to codex, resumes on bucket roll.

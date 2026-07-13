@@ -96,6 +96,12 @@ class HookCommands(BaseModel):
         (OC bridges this into its usage store).
       - ``session_end``: run after every session with one JSON argument
         ``{"iteration":…, "backend":…, "returncode":…, "log_path":…}``.
+      - ``budget_guard``: run at the top of every iteration, before backend
+        selection; stdout must be a JSON object ``{backend_name:
+        iso8601_or_null}``. Non-null future times EXTEND that backend's
+        cooldown — never shorten one (a budget horizon must not mask a real
+        limit reset). OC uses this to divert to codex when the shared
+        subscription budget reserve is reached.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -104,6 +110,7 @@ class HookCommands(BaseModel):
     seed_cooldowns: list[str] = Field(default_factory=list)
     on_cooldown: list[str] = Field(default_factory=list)
     session_end: list[str] = Field(default_factory=list)
+    budget_guard: list[str] = Field(default_factory=list)
 
 
 class PseudoOperatorConfig(BaseModel):
