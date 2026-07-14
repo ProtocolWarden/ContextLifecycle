@@ -33,7 +33,7 @@ from pathlib import Path
 
 import yaml
 
-from .signing import _load_section, canonical_bytes
+from .signing import canonical_bytes, load_section, section_of
 
 COMMITTED_REF = "origin/main"
 # Bounded so an offline/slow launch degrades quickly instead of hanging.
@@ -58,17 +58,6 @@ def _run_git(args: list[str], cwd: Path, timeout: int) -> subprocess.CompletedPr
         text=True,
         timeout=timeout,
     )
-
-
-def _section_from_yaml_text(text: str) -> dict:
-    """Parse the committed YAML bytes to the same section Track C anchors."""
-    data = yaml.safe_load(text)
-    if not isinstance(data, dict):
-        raise ValueError("committed config is not a YAML mapping")
-    section = data.get("pseudo_operator", data)
-    if not isinstance(section, dict):
-        raise ValueError("committed config has no pseudo_operator section")
-    return section
 
 
 def verify_committed(config_file: Path) -> CommittedResult:
@@ -109,11 +98,11 @@ def verify_committed(config_file: Path) -> CommittedResult:
         )
 
     try:
-        committed = _section_from_yaml_text(show.stdout)
-    except ValueError as exc:
+        committed = section_of(yaml.safe_load(show.stdout), source=f"{COMMITTED_REF}:committed")
+    except (ValueError, yaml.YAMLError) as exc:
         return CommittedResult("skip", f"committed config unreadable: {exc}", None)
     try:
-        live = _load_section(config_file)
+        live = load_section(config_file)
     except ValueError as exc:
         return CommittedResult("skip", f"live config unreadable: {exc}", None)
 

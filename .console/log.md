@@ -1,4 +1,17 @@
 # Log
+## 2026-07-14 — refactor: C2 shares one public section-extractor with signing (reviewer code_quality)
+
+Addressed the C2 reviewer's code_quality concern + removed a real smell:
+committed.py imported the PRIVATE `signing._load_section` AND duplicated its
+section-extraction as `_section_from_yaml_text`. Promoted to a single public
+`signing.section_of(data)` (the one source of truth for what the anchor covers)
++ `signing.load_section(file)`; committed.py now calls both, so the signed and
+committed checks provably resolve the SAME scope with no duplication. Also
+caught a latent bug: the committed-YAML parse could raise `yaml.YAMLError`,
+which `verify_committed` (contract: never raises) did not catch — now returns
+`skip` on malformed committed YAML too. 408 pass; a same-scope test pins that
+`load_section` and `section_of` resolve identically (T1).
+
 ## 2026-07-14 — feat: C2 launch-time committed-truth check (keyless council anchor)
 
 Council spec (COUNCIL_VERDICT.md) Phase 1. When the loop config has NO signed

@@ -70,6 +70,24 @@ def _repo(tmp_path: Path) -> tuple[Path, Path]:
     return cfg, priv
 
 
+def test_section_extractors_resolve_same_scope(tmp_path: Path):
+    """load_section (from file) and section_of (from parsed data) must resolve
+    the SAME anchored section — the single source of truth the signed (Track C)
+    and committed (C2) checks both compare, so their scopes can never diverge."""
+    cfg, _ = _repo(tmp_path)
+    import yaml
+
+    from_file = signing.load_section(cfg)
+    from_data = signing.section_of(yaml.safe_load(cfg.read_text(encoding="utf-8")))
+    assert from_file == from_data
+    assert from_file["max_iterations"] == 7
+    # A mapping without a pseudo_operator key falls back to the whole mapping;
+    # a non-mapping raises (the never-anchor-junk guard).
+    assert signing.section_of({"loop_name": "x"}) == {"loop_name": "x"}
+    with pytest.raises(ValueError, match="not a YAML mapping"):
+        signing.section_of(["not", "a", "mapping"])
+
+
 def test_unsigned_when_no_reference(tmp_path: Path):
     cfg, _ = _repo(tmp_path)
     assert verify_reference(cfg).status == "unsigned"
