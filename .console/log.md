@@ -1,4 +1,23 @@
 # Log
+## 2026-07-14 — feat: C2 launch-time committed-truth check (keyless council anchor)
+
+Council spec (COUNCIL_VERDICT.md) Phase 1. When the loop config has NO signed
+reference, `cl loop run` now compares the live `pseudo_operator:` section
+against the committed copy on `origin/main` (`git show origin/main:<relpath>`
+after a bounded `git fetch`) — the keyless analogue of Track C's
+restore-by-consumption. Match → run live (it IS committed truth); drift → run
+the COMMITTED copy (`signed_status="drift_unsigned"`, no YAML rewrite) and flag
+loudly; unreachable origin → skip with a loud note (degrade-never-halt). New
+launcher flag `--require-committed` (parity with `--require-signed`, lives
+outside agent-reachable config) turns it into a fail-closed gate: refuses to
+start on drift AND when it cannot confirm committed truth (offline) — a
+fail-open skip there would let anyone bypass the gate by cutting network. A
+signed reference present ⇒ Track C wins unchanged; C2 is never consulted. New
+module `pseudo_operator/committed.py` reuses signing's `_load_section` +
+`canonical_bytes` so the committed scope is byte-identical to what Track C
+signs. 28 tests (test_committed.py + signing/loop regression); T1 satisfied by
+a `CommittedResult` isinstance assertion.
+
 ## 2026-07-07 — fix: surface hook stderr in the loop log on success
 
 Hooks log their actions via logging → stderr (e.g. OC self-update's

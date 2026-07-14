@@ -57,16 +57,29 @@ def run_cmd(
         help="Refuse to start unless the config is anchored (signed reference "
         "verifies). Launchers pass this once the operator has signed.",
     ),
+    require_committed: bool = typer.Option(
+        False,
+        "--require-committed",
+        help="Keyless (C2) parity with --require-signed: when the config is NOT "
+        "signed, refuse to start if the live section drifts from origin/main "
+        "instead of running the committed copy. Ignored when a signed reference "
+        "is present (Track C wins).",
+    ),
 ) -> NoReturn:
     """Run the loop (foreground). Refuses to start on an invalid config.
 
     Trust anchor (Track C): with a signed reference present, the engine runs
     the VERIFIED section — on drift it consumes the reference (not the live
     section) and flags the divergence; a bad signature always refuses.
+
+    Committed-truth check (C2): with NO signed reference, the engine compares
+    the live section against the committed copy on ``origin/main`` — on drift it
+    runs the committed copy (``drift_unsigned``) unless ``--require-committed``
+    refuses; offline/unreachable launches degrade to unsigned with a loud note.
     """
     try:
         cfg, signed_status, detail = load_verified_config(
-            config, require_signed=require_signed
+            config, require_signed=require_signed, require_committed=require_committed
         )
     except (ValueError, OSError) as exc:
         typer.echo(f"config error: {exc}", err=True)
@@ -75,6 +88,12 @@ def run_cmd(
         typer.echo(
             f"[TRUST] live config DIVERGES from the signed reference — running the "
             f"reference (restore-by-consumption): {detail}",
+            err=True,
+        )
+    elif signed_status == "drift_unsigned":
+        typer.echo(
+            f"[TRUST] live config DIVERGES from origin/main — running the COMMITTED "
+            f"copy (keyless committed-truth check, restore-by-consumption): {detail}",
             err=True,
         )
     elif signed_status == "unsigned":
