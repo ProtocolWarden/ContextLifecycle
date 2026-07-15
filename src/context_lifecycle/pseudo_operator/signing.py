@@ -55,16 +55,26 @@ def _paths(config_file: Path) -> tuple[Path, Path, Path]:
     return d / REFERENCE_NAME, d / SIGNATURE_NAME, d / PUBKEY_NAME
 
 
-def _load_section(config_file: Path) -> dict:
-    from context_lifecycle.io.yaml_io import load_yaml_safe
+def section_of(data: object, *, source: str = "config") -> dict:
+    """Extract the anchored ``pseudo_operator`` section from parsed YAML data.
 
-    data = load_yaml_safe(config_file, default=None)
+    The single source of truth for what a signed/committed anchor covers, so the
+    file path (:func:`load_section`) and any already-parsed source (e.g. the
+    committed bytes from ``git show``) resolve the SAME scope.
+    """
     if not isinstance(data, dict):
-        raise ValueError(f"{config_file}: not a YAML mapping")
+        raise ValueError(f"{source}: not a YAML mapping")
     section = data.get("pseudo_operator", data)
     if not isinstance(section, dict):
-        raise ValueError(f"{config_file}: no pseudo_operator section")
+        raise ValueError(f"{source}: no pseudo_operator section")
     return section
+
+
+def load_section(config_file: Path) -> dict:
+    """Load and extract the anchored section from a YAML config file."""
+    from context_lifecycle.io.yaml_io import load_yaml_safe
+
+    return section_of(load_yaml_safe(config_file, default=None), source=str(config_file))
 
 
 def sign_reference(config_file: Path, private_key_path: Path) -> Path:
@@ -74,7 +84,7 @@ def sign_reference(config_file: Path, private_key_path: Path) -> Path:
     keygen). Writes the canonical snapshot + signature beside the config file;
     commit both. Never called by any fleet path.
     """
-    section = _load_section(config_file)
+    section = load_section(config_file)
     payload = canonical_bytes(section)
     data = private_key_path.read_bytes()
     key = load_pem_private_key(data, password=None)
@@ -129,7 +139,7 @@ def verify_reference(config_file: Path) -> VerifyResult:
     except ValueError as exc:
         return VerifyResult("bad_signature", f"reference is not valid JSON: {exc}", None)
     try:
-        live = _load_section(config_file)
+        live = load_section(config_file)
     except ValueError as exc:
         return VerifyResult("drift", f"live config unreadable: {exc}", reference)
     if canonical_bytes(live) != canonical_bytes(reference):
@@ -147,6 +157,8 @@ __all__ = [
     "SIGNATURE_NAME",
     "VerifyResult",
     "canonical_bytes",
+    "load_section",
+    "section_of",
     "sign_reference",
     "verify_reference",
 ]

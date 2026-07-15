@@ -235,43 +235,94 @@ def load_pseudo_operator_config(config_file: Path) -> PseudoOperatorConfig:
     return PseudoOperatorConfig.model_validate(section)
 
 
+def _with_repo_root(section: dict, config_file: Path) -> dict:
+    """Inject the default ``repo_root`` into a section loaded from anchor bytes."""
+    section = dict(section)
+    if "repo_root" not in section:
+        parent = config_file.resolve().parent
+        section["repo_root"] = str(
+            parent.parent if parent.name in {".context", ".console"} else parent
+        )
+    return section
+
+
 def load_verified_config(
-    config_file: Path, *, require_signed: bool = False
+    config_file: Path, *, require_signed: bool = False, require_committed: bool = False
 ) -> tuple[PseudoOperatorConfig, str, str]:
-    """Load the loop config through the trust anchor (Track C).
+    """Load the loop config through the trust anchor (Track C) or, when it is
+    not anchored, the keyless committed-truth check (C2).
 
     Returns ``(config, signed_status, detail)`` where signed_status is
-    ok | drift | unsigned. Enforcement:
+    ok | drift | unsigned | drift_unsigned. Enforcement:
 
-    - ``ok``: run the live section (it IS the reference).
+    - ``ok``: run the live section (it IS the signed reference).
     - ``drift``: run the SIGNED REFERENCE, not the live section — restore-by-
       consumption; the caller logs the divergence loudly.
     - ``bad_signature``: raise — a present-but-unverifiable reference means the
       anchor is compromised or corrupt; never fall back to the live section.
-    - ``unsigned``: raise when ``require_signed``; otherwise run the live
-      section (pre-anchoring mode; the caller warns).
+    - no signed reference (``unsigned``): raise when ``require_signed``;
+      otherwise fall through to the committed-truth check (C2, below).
+
+    C2 — when no signed reference exists (Track C wins unchanged whenever one is
+    present, so this runs only in the unsigned case):
+
+    - committed match: run the live section (it IS the committed truth) as
+      normal unsigned.
+    - ``drift_unsigned``: the live section diverges from ``origin/main`` — run
+      the COMMITTED copy (restore-by-consumption, no YAML rewriting) and flag it
+      loudly, OR raise when ``require_committed``.
+    - skip (offline / fetch failure / config absent on origin): run the live
+      section unsigned with a loud note — degrade-never-halt for ordinary
+      launches; but raise when ``require_committed`` — the gate cannot confirm
+      the live section matches committed truth, and a fail-open skip would let
+      anyone bypass ``--require-committed`` by cutting network access (parity
+      with ``--require-signed``, which likewise refuses when it cannot confirm).
     """
+    from .committed import verify_committed
     from .signing import verify_reference
 
     result = verify_reference(config_file)
     if result.status == "bad_signature":
         raise ValueError(f"signed loop config FAILED verification: {result.detail}")
-    if result.status == "unsigned":
-        if require_signed:
-            raise ValueError(
-                f"--require-signed set but the loop config is not anchored ({result.detail}); "
-                "sign it with `cl loop sign-config`"
-            )
-        return load_pseudo_operator_config(config_file), "unsigned", result.detail
     if result.status == "drift":
-        section = dict(result.reference or {})
-        if "repo_root" not in section:
-            parent = config_file.resolve().parent
-            section["repo_root"] = str(
-                parent.parent if parent.name in {".context", ".console"} else parent
-            )
+        section = _with_repo_root(result.reference or {}, config_file)
         return PseudoOperatorConfig.model_validate(section), "drift", result.detail
-    return load_pseudo_operator_config(config_file), "ok", result.detail
+    if result.status == "ok":
+        return load_pseudo_operator_config(config_file), "ok", result.detail
+
+    # No signed reference — Track C does not apply.
+    if require_signed:
+        raise ValueError(
+            f"--require-signed set but the loop config is not anchored ({result.detail}); "
+            "sign it with `cl loop sign-config`"
+        )
+
+    # C2: keyless committed-truth check against origin/main.
+    committed = verify_committed(config_file)
+    if committed.status == "drift":
+        if require_committed:
+            raise ValueError(
+                "--require-committed set but the live loop config DIVERGES from "
+                f"origin/main ({committed.detail}); commit the change on origin/main "
+                "or relaunch without --require-committed"
+            )
+        section = _with_repo_root(committed.committed or {}, config_file)
+        return PseudoOperatorConfig.model_validate(section), "drift_unsigned", committed.detail
+    if committed.status == "skip":
+        if require_committed:
+            raise ValueError(
+                "--require-committed set but the live loop config could not be "
+                f"verified against origin/main ({committed.detail}); the gate "
+                "cannot confirm committed truth — resolve connectivity or "
+                "relaunch without --require-committed"
+            )
+        return (
+            load_pseudo_operator_config(config_file),
+            "unsigned",
+            f"{result.detail}; committed-truth check skipped: {committed.detail}",
+        )
+    # match — live section is the committed truth.
+    return load_pseudo_operator_config(config_file), "unsigned", committed.detail
 
 
 __all__ = [
