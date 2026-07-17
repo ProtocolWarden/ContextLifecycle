@@ -289,6 +289,23 @@ def _surface_cold_lines(target: str, root: Path) -> list[str]:
 
 
 
+def _cold_slug_from_line(line: str) -> str | None:
+    """Extract the leading ``[<slug>]`` citation token from a surfaced cold line.
+
+    The cold emitter (`cold.surface_cold`) prefixes every real item line with a
+    machine-parseable ``[<slug>]`` handle (D3 attribution scheme A). Return the
+    slug, or None for a line that carries no token — e.g. the
+    ``...(N more cold topic(s); ...)`` truncation note, which must not be
+    recorded as an injected slug. Never raises.
+    """
+    if not line.startswith("["):
+        return None
+    end = line.find("]")
+    if end <= 1:
+        return None
+    return line[1:end]
+
+
 def _log_injection_event(
     root: Path,
     target: str,
@@ -298,6 +315,7 @@ def _log_injection_event(
     missing: list[str],
     over_budget: list[str],
     cold_count: int,
+    cold_slugs: list[str],
 ) -> None:
     """Append one JSONL line per injection to sessions/.telemetry/injection.jsonl.
 
@@ -307,18 +325,27 @@ def _log_injection_event(
     dot-dir, machine-local, covered by the fleet's sessions gitignore) and is
     strictly best-effort: a telemetry failure must never affect injection
     (spec §1: the router never raises).
+
+    `cold_slugs` additionally records the slug of each surfaced cold item with a
+    per-slug injection timestamp (D3 attribution scheme A substrate): the ledger
+    of which cold memories were put in front of an agent, and when, so a later
+    ``Context-Used: <slug>`` citation can be matched to a real injection. This is
+    purely additive — the legacy ``cold_surfaced`` count and every existing field
+    are unchanged, so existing telemetry consumers keep working.
     """
     try:
         tel_dir = root / ".context" / "sessions" / ".telemetry"
         tel_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().isoformat(timespec="seconds")
         event = {
-            "ts": datetime.now().isoformat(timespec="seconds"),
+            "ts": ts,
             "target": target,
             "injected": injected,
             "empty": empty,
             "missing": missing,
             "over_budget": over_budget,
             "cold_surfaced": cold_count,
+            "cold_slugs": [{"slug": slug, "ts": ts} for slug in cold_slugs],
         }
         with (tel_dir / "injection.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -380,6 +407,13 @@ def build_context(target: str, root: Path) -> str:
     if not blocks and not notes and not cold_lines:
         return ""
 
+    # Recover the citation slug from each surfaced cold line (skipping the
+    # ...(N more) truncation note, which carries no token) so the telemetry can
+    # record exactly which cold items were injected — the D3 attribution substrate.
+    cold_slugs = [
+        slug for line in cold_lines if (slug := _cold_slug_from_line(line)) is not None
+    ]
+
     # Something is being surfaced — record it (best-effort, never raises).
     _log_injection_event(
         root,
@@ -389,6 +423,7 @@ def build_context(target: str, root: Path) -> str:
         missing=missing,
         over_budget=list(over_budget),
         cold_count=len(cold_lines),
+        cold_slugs=cold_slugs,
     )
 
     note = ("\n\n" + "\n".join(notes)) if notes else ""
