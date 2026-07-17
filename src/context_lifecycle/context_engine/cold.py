@@ -285,12 +285,17 @@ def surface_cold(target: str, knowledge_dir: Path, max_items: int) -> list[str]:
     """One-line cold-topic surfacing for `target` (spec §2.3).
 
     For each cold-tier item whose any() path-glob matches `target`, emit one
-    line ``'topic — <first matching path glob> — <finding>'`` (em-dash
-    separators, spec §2.3 line 198-199 verbatim format). Only
-    ``tier == 'cold'`` items surface (warm/hot are injected/anchored elsewhere,
-    avoiding double-surfacing). Sorted by topic for determinism; capped at
-    `max_items` with a non-silent ``...(N more)`` note (spec §3 parity).
-    Returns [] on any failure — fail-soft, never raises (spec §1).
+    line ``'[<slug>] topic — <first matching path glob> — <finding>'`` (em-dash
+    separators, spec §2.3 line 198-199 verbatim format for the human portion).
+    The leading ``[<slug>]`` token is a machine-parseable citation handle (D3
+    attribution scheme A): an acting agent that reads the injected line can cite
+    the item back in a ``Context-Used: <slug>`` commit trailer. The token is
+    additive — the human ``topic — glob — finding`` content after it is
+    unchanged. Only ``tier == 'cold'`` items surface (warm/hot are
+    injected/anchored elsewhere, avoiding double-surfacing). Sorted by topic for
+    determinism; capped at `max_items` with a non-silent ``...(N more)`` note
+    (spec §3 parity). Returns [] on any failure — fail-soft, never raises
+    (spec §1).
     """
     try:
         if target.startswith("./"):
@@ -307,7 +312,10 @@ def surface_cold(target: str, knowledge_dir: Path, max_items: int) -> list[str]:
             if hit_glob is None:
                 continue
             matched.append(
-                (item.topic, f"{item.topic} — {hit_glob} — {item.finding}")
+                (
+                    item.topic,
+                    f"[{item.slug}] {item.topic} — {hit_glob} — {item.finding}",
+                )
             )
 
         matched.sort(key=lambda pair: pair[0])

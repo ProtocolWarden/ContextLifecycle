@@ -179,7 +179,32 @@ def test_surface_cold_matches_glob(tmp_path):
         "src/platform_manifest/projection/rules.py", kn, max_items=5
     )
     assert len(lines) == 1
+    # The line now leads with the machine-parseable [slug] citation token
+    # (D3 attribution scheme A), followed by the unchanged human content.
     assert lines[0] == (
+        "[projection] projection — src/platform_manifest/projection/** — "
+        "Redaction must run before validation."
+    )
+
+
+def test_surface_cold_line_carries_parseable_slug(tmp_path):
+    # D3 attribution scheme A substrate: the surfaced line must carry the item's
+    # slug as a leading [slug] token that parses back exactly to the slug, while
+    # the human `topic — glob — finding` content is preserved intact.
+    kn = tmp_path / "knowledge"
+    _write(kn, "projection.md", _VALID)
+    lines = cold.surface_cold(
+        "src/platform_manifest/projection/rules.py", kn, max_items=5
+    )
+    assert len(lines) == 1
+    line = lines[0]
+    # The token is greppable and parses back to the slug (== the file stem).
+    assert line.startswith("[projection] ")
+    parsed_slug = line[1 : line.index("]")]
+    assert parsed_slug == "projection"
+    # Human-readable content unchanged (present after the token).
+    human = line[line.index("]") + 2 :]
+    assert human == (
         "projection — src/platform_manifest/projection/** — "
         "Redaction must run before validation."
     )
@@ -198,9 +223,10 @@ def test_surface_cold_emits_second_matching_glob(tmp_path):
         "src/platform_manifest/projection/rules.py", kn, max_items=5
     )
     assert len(lines) == 1
-    # The emitted glob is the second path entry (the matching one), with em-dash.
+    # The emitted glob is the second path entry (the matching one), with em-dash,
+    # behind the leading [slug] citation token.
     assert lines[0] == (
-        "projection — src/platform_manifest/projection/** — "
+        "[projection] projection — src/platform_manifest/projection/** — "
         "Redaction must run before validation."
     )
 

@@ -322,6 +322,87 @@ def test_build_context_no_event_on_no_match(tmp_path):
     assert not (tmp_path / ".context" / "sessions" / ".telemetry").exists()
 
 
+# A valid §2.6 cold item (mirrors the cold-store test fixture) so the router's
+# lazy cold surfacing has something to inject.
+_COLD_ITEM = """---
+topic: projection
+paths: ["src/x/**"]
+created: 2026-06-02
+campaign_id: c-2026-06-02-9f3a
+consequence:
+  acted_on_commit: null
+  tests_green: unknown
+tier: cold
+pinned: false
+last_injected: null
+---
+## Finding
+Redaction must run before validation.
+## Detail
+Long reasoning here.
+"""
+
+
+def test_build_context_records_injected_cold_slugs(tmp_path):
+    # D3 attribution scheme A substrate: the injection telemetry must record the
+    # slug of each surfaced cold item with a per-slug injection ts, IN ADDITION
+    # to the legacy cold_surfaced count and every existing field (non-breaking).
+    import json as _json
+
+    ctx = tmp_path / ".context"
+    kn = ctx / "knowledge"
+    kn.mkdir(parents=True)
+    (kn / "projection.md").write_text(_COLD_ITEM)
+
+    block = route.build_context("src/x/thing.py", tmp_path)
+    # The slug token is visible in the injected block (agent can cite it).
+    assert "[projection]" in block
+
+    log = ctx / "sessions" / ".telemetry" / "injection.jsonl"
+    assert log.is_file()
+    event = _json.loads(log.read_text().splitlines()[-1])
+
+    # New field: one record per surfaced cold slug, each with slug + ts.
+    assert event["cold_slugs"] == [{"slug": "projection", "ts": event["ts"]}]
+
+    # Legacy fields unchanged: the count still reflects the surfaced cold lines,
+    # and the existing keys are all still present with their prior meaning.
+    assert event["cold_surfaced"] == 1
+    assert event["target"] == "src/x/thing.py"
+    assert event["injected"] == []  # cold-only target: no warm docs
+    assert event["empty"] == []
+    assert event["missing"] == []
+    assert event["over_budget"] == []
+    assert "ts" in event
+
+
+def test_injection_event_omits_truncation_note_from_cold_slugs(tmp_path):
+    # The ...(N more) truncation note is not a cold item and must NOT appear as a
+    # slug in cold_slugs; the count (cold_surfaced) still includes the note line.
+    import json as _json
+
+    ctx = tmp_path / ".context"
+    ctx.mkdir()
+    (ctx / "routes.yaml").write_text(
+        "engine_compat: '>=0.2 <0.3'\nbudget:\n  max_cold_surface_per_edit: 1\n"
+    )
+    kn = ctx / "knowledge"
+    kn.mkdir()
+    for i in range(3):
+        (kn / f"item{i}.md").write_text(
+            _COLD_ITEM.replace("topic: projection", f"topic: t{i}")
+        )
+
+    route.build_context("src/x/thing.py", tmp_path)
+
+    log = ctx / "sessions" / ".telemetry" / "injection.jsonl"
+    event = _json.loads(log.read_text().splitlines()[-1])
+    slugs = [rec["slug"] for rec in event["cold_slugs"]]
+    # Exactly the one surfaced item (cap=1); no synthetic slug for the note.
+    assert slugs == ["item0"]
+    assert all("more cold topic" not in s for s in slugs)
+
+
 def test_telemetry_failure_never_breaks_router(tmp_path, monkeypatch):
     ctx = tmp_path / ".context"
     ctx.mkdir()

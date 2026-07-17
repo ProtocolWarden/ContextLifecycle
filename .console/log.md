@@ -1,4 +1,25 @@
 # Log
+## 2026-07-16 — feat: D3 P0-A — surface cold-item slug + record injected slugs (attribution substrate)
+
+The substrate for D3 "attribution scheme A" (explicit `Context-Used: <slug>`
+citation). Two focused, non-breaking changes to the context engine:
+
+- cold.py `surface_cold`: each surfaced cold line now leads with a
+  machine-parseable `[<slug>]` citation token, ahead of the unchanged human
+  `topic — glob — finding` content. An acting agent reading the injected line
+  can now cite the exact item it used. Additive only — what surfaces and when
+  is untouched.
+- route.py telemetry: `_log_injection_event` records a new `cold_slugs`
+  field — `[{"slug", "ts"}]` per surfaced cold item, ts = injection time — in
+  ADDITION to the legacy `cold_surfaced` count and every existing field (fully
+  backward compatible). Slugs are recovered from the surfaced lines via a new
+  `_cold_slug_from_line` helper, which skips the `...(N more)` truncation note.
+
+NO promotion-gate behavior change. New/updated tests: two exact-line assertions
+updated to include the token, a parse-back test in test_cold_store.py, and two
+telemetry tests in test_context_router.py (cold_slugs recorded + legacy fields
+unchanged; truncation note excluded). Full suite 412 pass; ruff clean.
+
 ## 2026-07-14 — refactor: C2 shares one public section-extractor with signing (reviewer code_quality)
 
 Addressed the C2 reviewer's code_quality concern + removed a real smell:
