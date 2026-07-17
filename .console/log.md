@@ -1,4 +1,37 @@
 # Log
+## 2026-07-16 — feat: D3 P2 pure attribution planner (Context-Used trailer → consequence plan)
+
+New `context_engine/attribution.py`: `plan_attribution(root, ...)` →
+`AttributionPlan` — the mechanism that decides which merged commit proves which
+injected cold-memory item useful. Implements the D3 §4.1 link predicate, ALL
+clauses required: (1) explicit `Context-Used: <slug>` git trailer (exact
+match — attribution is NEVER inferred from temporal proximity); (2) path
+corroboration — ≥1 changed file matches ≥1 of the item's `paths` globs via the
+SAME matcher `surface_cold` uses (`route._glob_to_regex` + the same leading-./
+normalization); (3) existence+reachability by construction — candidate commits
+come ONLY from `git log origin/<default>` (bounded `--since` the earliest
+injection ts, `--grep` prefilter); (4) causal ordering — author-date ≥ the
+slug's earliest injection ts from the P0 `cold_slugs` ledger (a slug never
+injected can NEVER attribute); (5) same-repo — only root's own git/ledger are
+ever consulted. Cold-tier candidates only (§3.3 no feedback loop) and
+write-once (already-real-sha items skipped). Multiple qualifying commits ⇒ the
+EARLIEST (author-date, then sha) wins — first proof of usefulness,
+deterministic because merged history is append-only; one commit citing many
+slugs evaluates each independently (§3.2). `tests_green` resolved per attributed
+sha through an injectable seam over P1 `ci_status.resolve_ci_status`
+(caller-supplied repo/token; either absent ⇒ verbatim "unknown"; nonstandard
+seam values degrade to "unknown", NEVER True). Every rejection carries a
+machine-readable reason (`never_injected`, `cited_before_injection`,
+`cited_no_path_overlap`, `not_cold_tier`, `already_attributed`,
+`unknown_slug`, `no_citing_commit`, `timestamp_unparseable`). ZERO writes —
+pure planner + dry-run-only CLI (no --apply; no --token on argv); never raises
+(fail-soft empty plan, plan_consolidation's idiom). NO caller wired; P3
+dispatches the plan through `cold.write_item` under the reviewed `--apply`
+boundary. New `tests/test_attribution.py` = the §3 red-team as a matrix
+(31 tests, all seams faked). Full suite 463 pass; ruff clean; custodian
+0 findings (first pass flagged C29 line-budget + C16 read_text-encoding —
+docstrings tightened to 498 lines, `encoding="utf-8"` added).
+
 ## 2026-07-16 — feat: D3 P0-B — self-describing citation instruction in the injected cold block
 
 The injected cold block now teaches the reading agent the citation protocol
