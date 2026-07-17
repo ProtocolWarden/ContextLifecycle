@@ -1,4 +1,42 @@
 # Log
+## 2026-07-16 — feat: D3 P3 two-phase write-once consequence writer (human --apply)
+
+New `context_engine/attribution_apply.py` (460 lines; the `_load` sibling
+loader is imported from attribution.py, not cloned — custodian D11 flagged
+the copy on first push): the P3 writer that
+dispatches the P2 plan into cold-item frontmatter — `apply_attribution(root,
+plan, ...)` → `AppliedResult{applied, flipped, skipped}` (auditable,
+machine-readable reasons). Two phases, both MONOTONE and RE-CHECKED at write
+time (the plan may be stale; disk is re-read per item): Phase A re-loads each
+planned slug fresh and skips unless still cold-tier AND `acted_on_commit` not
+already a real sha (write-once at write time, not just plan time), then
+`dataclasses.replace` + `cold.write_item` (atomic whole-file rewrite) with the
+planned `tests_green` VERBATIM — a planned "unknown" is written "unknown",
+never upgraded; nonstandard degrades to "unknown", never True. Phase B scans
+disk for cold items with real sha + tests_green=="unknown" (incl. fresh
+Phase-A writes — an immediate §3.5 arrival) and flips ONLY on a literal
+True/False from the injectable CI seam; "unknown"→True|False at most once,
+True/False never touched, no re-flip (guarded in code + tests). Never raises:
+per-item failures recorded, batch continues. Phase-B identity: NO argv secret,
+NO env reads — injectable providers default to `gh auth token` (gh = the auth
+source of truth) and `git remote get-url origin` parsed to owner/repo
+(https/ssh/scp forms); any failure ⇒ None ⇒ CI resolves "unknown" ⇒
+safe-inert. Wired INSIDE the existing reviewed `--apply` boundary:
+`plan_consolidation` gains additive `attribution_runner=None` (default = every
+existing caller unchanged) + `ConsolidationPlan.attribution`; the CLI passes
+`run_attribution` — dry-run now RENDERS the attribution plan + PENDING-CI-FLIP
+worklist for the human reviewer (zero writes, fail-soft: attribution failure
+never breaks the consolidation output; verified in a scaffolded-consumer sim
+where attribution modules are absent), and under `--apply` the writer runs
+FIRST, before the cold index loads, so `gate_promotions` sees fresh
+consequences in the SAME pass (§4.3) — apply-then-gate covered both ways
+(Phase-A True promotes; Phase-B flip promotes). The plan path stays
+token-less (Phase A writes verbatim-as-reviewed; Phase B owns CI). NO
+autonomous apply: P4 is an explicit operator decision — no new CLI, no new
+mutation surface outside the human interlock. New
+`tests/test_attribution_apply.py` (33 tests, all seams faked). Full suite
+498 pass; ruff clean.
+
 ## 2026-07-16 — feat: D3 P2 pure attribution planner (Context-Used trailer → consequence plan)
 
 New `context_engine/attribution.py`: `plan_attribution(root, ...)` →

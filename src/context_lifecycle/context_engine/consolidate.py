@@ -95,6 +95,10 @@ class ConsolidationPlan:
     prunes: list[PlannedAction] = field(default_factory=list)
     rejections: list[PlannedAction] = field(default_factory=list)
     keeps: list[PlannedAction] = field(default_factory=list)
+    # D3 P3: the attribution outcome carried alongside the consolidation
+    # actions (attribution_apply.AttributionOutcome | None). Additive with a
+    # safe default so every existing constructor/caller is untouched.
+    attribution: object | None = None
 
     def all_actions(self) -> list[PlannedAction]:
         return (
@@ -337,13 +341,27 @@ def decay_warm(
 
 
 def plan_consolidation(
-    root: Path, campaign_id: str | None = None, *, apply: bool = False
+    root: Path,
+    campaign_id: str | None = None,
+    *,
+    apply: bool = False,
+    attribution_runner=None,
 ) -> ConsolidationPlan:
     """Compute (and, with apply=True, execute) the campaign-close pass.
 
     Always builds the ConsolidationPlan FIRST via pure readers (zero writes).
     With apply=True, dispatches each action to its mutator with per-action
     isolation. Returns an empty plan on any top-level failure (never raises).
+
+    ``attribution_runner`` (D3 P3, additive — default None keeps every
+    existing caller byte-for-byte unchanged) is a ``(root, apply) -> outcome``
+    callable (attribution_apply.run_attribution's shape). Dry-run it is a pure
+    reader whose outcome is rendered for the human reviewer; under apply=True
+    it runs the consequence WRITER (Phase A attributions + Phase B CI flips)
+    FIRST, before the cold index is loaded, so gate_promotions sees the
+    freshly-written consequences in this SAME pass (D3 spec §4.3). Fail-soft:
+    a failing runner degrades to no-attribution and never breaks the
+    consolidation plan/output.
     """
     try:
         cold = _load("cold")
@@ -355,6 +373,13 @@ def plan_consolidation(
         knowledge_dir = context_dir / "knowledge"
         sessions_dir = context_dir / "sessions"
         archived_dir = context_dir / "archived"
+
+        attribution_outcome = None
+        if attribution_runner is not None:
+            try:
+                attribution_outcome = attribution_runner(root, apply)
+            except Exception:
+                attribution_outcome = None
 
         items = cold.load_index(knowledge_dir)
 
@@ -416,6 +441,7 @@ def plan_consolidation(
             prunes=prunes,
             rejections=rejections,
             keeps=keeps,
+            attribution=attribution_outcome,
         )
 
         if not apply:
@@ -502,6 +528,17 @@ def _today() -> str:
 
 def _render(plan: ConsolidationPlan) -> str:
     lines: list[str] = []
+    # D3 P3 visibility: the attribution plan / pending CI flips / applied
+    # writes are shown FIRST — they mirror execution order under --apply
+    # (writer before gate). Fail-soft: a render failure must never break the
+    # existing consolidation output.
+    if plan.attribution is not None:
+        try:
+            extra = _load("attribution_apply").render_outcome(plan.attribution)
+            if extra:
+                lines.append(extra)
+        except Exception:
+            pass
     for a in plan.promotions:
         lines.append(f"PROMOTE {a.target} ({a.reason})")
     for a in plan.rejections:
@@ -517,6 +554,16 @@ def _render(plan: ConsolidationPlan) -> str:
     return "\n".join(lines)
 
 
+def _attribution_runner(root: Path, apply: bool):
+    """CLI wiring for the D3 P3 consequence writer, INSIDE this reviewed
+    boundary: dry-run computes the plan + pending CI flips for the human;
+    --apply runs the two-phase writer first (attribution_apply docstring).
+    Lazily loaded so a scaffolded consumer without the attribution modules
+    degrades to no-attribution (the caller's try/except catches the load).
+    """
+    return _load("attribution_apply").run_attribution(root, apply=apply)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Phase 5 consolidation engine")
     parser.add_argument("--root", default=".", help="repo root (CL_ANCHOR)")
@@ -529,7 +576,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         plan = plan_consolidation(
-            Path(args.root), args.campaign, apply=args.apply
+            Path(args.root),
+            args.campaign,
+            apply=args.apply,
+            attribution_runner=_attribution_runner,
         )
         sys.stdout.write(_render(plan) + "\n")
     except Exception:  # never blocks: any failure -> nothing actionable, exit 0
