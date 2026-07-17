@@ -44,6 +44,17 @@ INJECT_HEADING = "## Inject"
 # so all breadth tuning lives in one config surface alongside max_docs_per_edit.
 COLD_SURFACE_CAP = 5
 
+# One-line citation protocol note appended to the cold block (D3 attribution
+# scheme A): the instruction travels WITH the injected data, so every consumer
+# learns the ``Context-Used:`` trailer protocol without per-consumer prompt
+# changes. Must NOT start with ``[`` (so `_cold_slug_from_line` returns None
+# for it) and is appended only to the rendered block — never to `cold_lines` —
+# so the `cold_surfaced` count and `cold_slugs` telemetry are unaffected.
+COLD_CITATION_NOTE = (
+    "(cite: if you act on a [slug] item above, add the git trailer "
+    '"Context-Used: <slug>" to that commit)'
+)
+
 
 @dataclass(frozen=True)
 class Route:
@@ -432,6 +443,14 @@ def build_context(target: str, root: Path) -> str:
         cold_section = (
             "\n\nRelated cold topics (pull on demand):\n" + "\n".join(cold_lines)
         )
+        # Self-describing block (D3 P0-B): when at least one REAL cold item is
+        # injected (a slug-bearing line, not just the truncation note), close
+        # the block with the citation instruction so the acting agent knows the
+        # `Context-Used:` trailer protocol. Rendered-only: appended after the
+        # telemetry above was assembled, so it never counts as a surfaced line
+        # and never appears in cold_slugs.
+        if cold_slugs:
+            cold_section += "\n" + COLD_CITATION_NOTE
 
     if not blocks:
         # No injectable warm docs. Emit any diagnostics + cold section.

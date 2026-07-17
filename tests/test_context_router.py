@@ -403,6 +403,54 @@ def test_injection_event_omits_truncation_note_from_cold_slugs(tmp_path):
     assert all("more cold topic" not in s for s in slugs)
 
 
+def test_cold_block_is_self_describing(tmp_path):
+    # D3 P0-B: when real cold items surface, the block closes with ONE
+    # instruction line teaching the acting agent the `Context-Used:` trailer
+    # protocol — the protocol travels with the data, not per-consumer prompts.
+    import json as _json
+
+    ctx = tmp_path / ".context"
+    kn = ctx / "knowledge"
+    kn.mkdir(parents=True)
+    (kn / "projection.md").write_text(_COLD_ITEM)
+
+    block = route.build_context("src/x/thing.py", tmp_path)
+
+    # Exactly one instruction line, it names the trailer key, and it is the
+    # LAST line of the block (after every surfaced item line).
+    assert block.count(route.COLD_CITATION_NOTE) == 1
+    assert "Context-Used:" in route.COLD_CITATION_NOTE
+    assert block.splitlines()[-1] == route.COLD_CITATION_NOTE
+    assert "[projection]" in block  # the item line it refers to is above it
+
+    # The instruction is rendered-only: not a slug line, not counted, not in
+    # the cold_slugs telemetry.
+    assert route._cold_slug_from_line(route.COLD_CITATION_NOTE) is None
+    log = ctx / "sessions" / ".telemetry" / "injection.jsonl"
+    event = _json.loads(log.read_text().splitlines()[-1])
+    assert event["cold_surfaced"] == 1
+    assert [rec["slug"] for rec in event["cold_slugs"]] == ["projection"]
+
+
+def test_no_citation_instruction_without_cold_items(tmp_path):
+    # Warm-only injection (no cold items surfaced): the instruction line must
+    # NOT appear — it describes the cold block only.
+    ctx = tmp_path / ".context"
+    ctx.mkdir()
+    (ctx / "routes.yaml").write_text(
+        'engine_compat: ">=0.2 <0.3"\n'
+        'routes:\n  - match: "src/loader.py"\n'
+        '    inject: ["docs/inject/loader.md"]\n    priority: 10\n'
+    )
+    doc = tmp_path / "docs" / "inject"
+    doc.mkdir(parents=True)
+    (doc / "loader.md").write_text("## Inject\n- Fail-closed.\n")
+
+    block = route.build_context("src/loader.py", tmp_path)
+    assert "Fail-closed." in block
+    assert "Context-Used" not in block
+
+
 def test_telemetry_failure_never_breaks_router(tmp_path, monkeypatch):
     ctx = tmp_path / ".context"
     ctx.mkdir()

@@ -1,4 +1,20 @@
 # Log
+## 2026-07-16 — feat: D3 P0-B — self-describing citation instruction in the injected cold block
+
+The injected cold block now teaches the reading agent the citation protocol
+itself, so NO per-consumer prompt changes are needed (the protocol travels with
+the data). route.py `build_context` appends one closing instruction line
+(`COLD_CITATION_NOTE`) to the cold section — `(cite: if you act on a [slug]
+item above, add the git trailer "Context-Used: <slug>" to that commit)` — and
+ONLY when at least one real slug-bearing cold line surfaced (gated on
+`cold_slugs`, so a hypothetical note-only block gets no instruction; a
+warm-only block never does). Rendered-only: appended to the block string after
+telemetry assembly, so `cold_surfaced` and `cold_slugs` are byte-identical to
+before, and the line does not start with `[` so `_cold_slug_from_line` returns
+None for it. cold.py `surface_cold` stays pure. Two new tests (presence + last
+line + telemetry unchanged; absence on warm-only). Full suite 434 pass; ruff
+clean.
+
 ## 2026-07-16 — feat: D3 P1 fail-closed CI-status resolver (sha → tests_green)
 
 New standalone module `context_engine/ci_status.py`: `resolve_ci_status(owner,
