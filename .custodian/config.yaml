@@ -46,6 +46,12 @@ audit:
     # operator env through) and resolves CL_HOME exactly like cli/session.py
     # (already allowlisted above) for non-interactive contexts.
     - "src/context_lifecycle/pseudo_operator/sessions.py"
+    # context_engine/ci_status.py is the PROCESS-SPAWN layer for the `gh` CLI:
+    # its single os.environ.copy() builds the child env so `gh` inherits PATH/HOME
+    # while the caller-supplied GitHub token is injected as GH_TOKEN — same
+    # spawn-layer rationale as sessions.py. It reads NO env key of its own (the
+    # token is a function argument, never sourced from the ambient environment).
+    - "src/context_lifecycle/context_engine/ci_status.py"
 
   exclude_paths:
     # ----------------------------------------------------------------------

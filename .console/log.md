@@ -1,4 +1,24 @@
 # Log
+## 2026-07-16 — feat: D3 P1 fail-closed CI-status resolver (sha → tests_green)
+
+New standalone module `context_engine/ci_status.py`: `resolve_ci_status(owner,
+repo, sha, *, token)` → `CIStatus` whose `tests_green` is exactly the
+`True | False | "unknown"` contract cold.py stores verbatim. This is the CI half
+of consolidate.py's deferred §9 attribution item (`_is_real_sha` today only
+shape-checks the sha; it does NOT resolve it against the repo). Queries
+GitHub's `commits/{sha}/check-runs` via `gh api` (matches CL's subprocess
+idiom — no new dependency; caller-supplied token injected as `GH_TOKEN` into
+the child `gh` env via an injectable `_run_gh` seam so tests never hit the
+network, and the module reads NO env key of its own). Rollup mirrors OperationsCenter's
+`get_failed_checks`/`get_incomplete_checks` (dedupe by name, keep newest id).
+FAIL-CLOSED is the whole point: `True` iff ≥1 run AND all completed AND none
+failing/incomplete/doubtful; `False` on any failing conclusion; `"unknown"` on
+no runs / in-flight / unknown sha / missing token / non-zero exit / malformed
+JSON / ANY exception (never raises, never `True` on doubt). NO caller wires it
+yet (a later PR feeds the D3 consequence-writer); NO change to the promotion
+gate. New `tests/test_ci_status.py` covers the full doubt matrix (21 tests).
+Full suite 430 pass; ruff clean.
+
 ## 2026-07-16 — feat: D3 P0-A — surface cold-item slug + record injected slugs (attribution substrate)
 
 The substrate for D3 "attribution scheme A" (explicit `Context-Used: <slug>`
