@@ -123,8 +123,21 @@ def stopped_logged_violation(item) -> bool:
     violation from recurring". Wired as an explicit predicate that would consult
     the §4 warn-only violation log; ships returning False (documented TODO) so
     v1 gates strictly on commit+green. Additive, NEVER a vote-count.
+
+    DEFERRED BY SPEC — not merely unfinished. The §4 warn-only violation logger
+    this predicate would read was "claimed to ship in v1 but never built" and is
+    deferred (context-injection-spec §4, 2026-06-06 status note). Its build
+    trigger is explicit and still UNMET: "a real recurring violation worth
+    seeding a rule from" (same evidence bar as the §7a gate). Until that trigger
+    fires there is no violation log to consult, so this path stays inert BY
+    DESIGN. Building the logger + this consult speculatively would be inert
+    machinery (a consumer for a signal nothing produces); it waits for the
+    trigger. See PM docs/architecture/context-injection-spec.md §4.
     """
-    # TODO(§4): consult the warn-only violation log once it exists.
+    # TODO(§4): consult the warn-only violation logger once its build trigger
+    # (a real recurring violation worth seeding a rule from) fires and the
+    # logger exists. Returning False is the correct, spec-mandated behavior
+    # until then — do NOT wire a speculative log.
     return False
 
 
