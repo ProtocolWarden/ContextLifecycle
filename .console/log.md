@@ -1,4 +1,22 @@
 # Log
+## 2026-07-17 — docs: D3 P5 — record stopped_logged_violation as spec-deferred
+
+Resolved P5 (the last D3 phase) as a **decision, not a build**. Investigated
+whether the §4 warn-only violation log `stopped_logged_violation()` would
+consult exists: it does NOT — grep across CL src/docs is clean, and the only
+`warn-only` reference (session/retention.py) is a rejection of the concept. The
+governing spec settles it: context-injection-spec §4 (PM) states the warn-only
+violation logger was "claimed to ship in v1 but never built" and is deferred
+(2026-06-06) behind an explicit, still-UNMET build trigger — "a real recurring
+violation worth seeding a rule from" (same bar as §7a). So P5 cannot be built
+without first speculatively building the logger, which the spec itself gates and
+which would be inert machinery (a consumer for a signal nothing produces).
+Sharpened the `stopped_logged_violation` docstring + TODO to encode the
+deferral-with-trigger so the `return False` reads as deliberate, not unfinished.
+No logic change; 38/38 consolidate tests green. D3 build arc P0-A→P3 complete +
+live on PM; P4 held (operator trust line); P5 spec-deferred with a recorded
+trigger.
+
 ## 2026-07-16 — feat: D3 P3 two-phase write-once consequence writer (human --apply)
 
 New `context_engine/attribution_apply.py` (460 lines; the `_load` sibling
@@ -302,78 +320,6 @@ repo owns (`session_gc`) points at invocation.ref code that resolves here —
 detectors (per the decoupling in Custodian #38). The PM seed ref was corrected to
 the real entrypoint in PM #76 — caught by enabling CAP1. Activates once the local
 custodian install is refreshed to @main.
-
-## 2026-06-06 — fix: port PM #68's cold.py docstring into engine source
-
-PM #68 corrected write_item's docstring (PARKED → CLOSED-superseded) in PM's
-vendored .context/.engine/cold.py copy only — `cl context init` refreshes
-engine copies from THIS package, so the next refresh would have silently
-reverted the fix. Lesson: engine fixes go to CL source first, consumers second.
-
-## 2026-06-06 — feat: injection telemetry (closes the §7a instrumentation gap)
-
-The context-management completeness audit found injection effectiveness was
-write-only: the §7a KEEP verdict rested on one observed edit because nothing
-records when routes fire, making any future re-evaluation data-free. route.py's
-build_context now appends one JSONL event per surfaced injection (target,
-injected docs, empty/missing/over-budget diagnostics, cold-surfaced count) to
-<anchor>/.context/sessions/.telemetry/injection.jsonl — machine-local dot-dir
-under sessions/ (fleet gitignore covers it; GC sweeps skip dot-dirs). Strictly
-best-effort: telemetry failure never affects the router (spec §1 never-raises;
-test proves injection survives a telemetry OSError). No event on no-match, so
-the log measures fires, not edits. Consumers pick it up on next `cl context
-init` engine refresh. 3 new tests; suite 296 pass.
-
-## 2026-06-06 — fix: retention audit follow-ups (recovery window + race + tests)
-
-Fresh post-train architecture audit confirmed the train clean except four small
-retention items, fixed here: (1) manual `prune --include-archived` dated
-archived dirs by id, silently bypassing the auto-GC 30-day recovery window for
-freshly-moved old-id dirs — archived dirs now date by `.gc-moved-at` stamp when
-present (new `_moved_at_date` helper, shared with tier 2); (2) tier-1
-`shutil.move` now tolerates losing a concurrent-sweep race (OSError → skip);
-(3) the stamp-before-sweep throttle semantics (one ATTEMPT per window, not one
-success) are now documented in the docstring — deliberate, so a persistently
-failing sweep doesn't re-pay its failure on every session start; (4) test gaps
-closed: collision-suffix lifecycle, corrupt-stamp fail-safe, stamp-respecting
-manual prune, throttle-after-failure. Suite 293 pass. Two audit claims REFUTED
-and not acted on: DC9/DC7 count semantics are identical (agent misread DC7),
-and the 44d fallback is already explained at the fallback site.
-
-## 2026-06-06 — feat: auto-GC at session start (adversarially-reviewed design)
-
-What drives `cl session prune` periodically: nothing did. Three adversarial
-reviews settled the action: plain auto-delete REJECTED (a loop session whose id
-is 15+ days old can still be writing leases — id-date is frozen at creation and
-$CL_SESSION_ID only protects the starter); warn-only REJECTED on fleet evidence
-(loop controller starts sessions with capture_output=True so stderr is unread;
-phase-3 nudge precedent proved warn-only hygiene inert); the surviving shape is
-two-stage move-then-delete. Tier 1: >14d sessions MOVE to archived/ with a
-.gc-moved-at stamp — reversible, and a still-live writer self-heals by
-recreating its sessions/ dir. Tier 2: archived dirs DELETE 30d after the stamp
-(44d id-date fallback for `session end` archives). Trigger: inside
-`cl session start`, 24h stamp throttle, whole sweep try/except (stdout carries
-eval'd exports — GC must never escape), protects both env sid and the freshly
-generated sid, audit lines to sessions/.gc/log (dot-dir, covered by the fleet's
-sessions/*/ gitignore; all sweeps skip dot-dirs). Manual `cl session prune`
-unchanged. 9 new tests (incl. stdout-purity and GC-failure-survival); suite 289
-pass. Live smoke on PM: stamp written, nothing moved (all sessions <14d),
-git status clean.
-
-## 2026-06-06 — feat: cl session prune (ephemeral-tier retention)
-
-Closes the last CL-side spec-audit tail item: PM's anchor had accumulated ~69k
-l-*.yaml lease records / 276 MB under .context/sessions/ because loop/executor
-sessions never call `cl session end`. New session/retention.py +
-`cl session prune [MANIFEST] [--retain-days N] [--include-archived] [--apply]`:
-date sessions by their id stamp (s-YYYY-MM-DD-…, mtime fallback), delete dirs
-strictly older than the cutoff, always keep $CL_SESSION_ID, dry-run by default
-(reconcile-prune idiom). Safe by the ephemeral-tier invariant — a session file
-must never hold the only copy of anything worth keeping. Live-verified on PM:
-7-day dry-run identifies 60,783 files / 50.5 MiB; default 14-day window
-correctly keeps the still-young sessions. 11 new tests (T1 guard satisfied via direct PruneCandidate/SessionPrunePlan
-assertions); suite 280 pass.
-
 
 ## Archived
 
