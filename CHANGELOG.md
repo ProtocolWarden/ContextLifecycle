@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ContextGuard resolved cognition paths against the anchor root instead of
+  the session directory**, so every guard read a path that does not exist.
+  `config.yaml` documents `capsule_path` / `checkpoint_path` / `handoff_path`
+  as relative to `.context/sessions/<CL_SESSION_ID>/`, but both Claude adapters
+  joined them onto `CL_ANCHOR` directly — `CL_SESSION_ID` appeared nowhere in
+  either hook. Lease expiry never fired, worker `forbidden_paths` never loaded,
+  and `require_capsule: true` would have blocked every tool call with "No active
+  capsule found" rather than enforcing anything. Both hooks now resolve against
+  `COGNITION_ROOT`, and the path defaults match the config convention.
+- **`block()` emitted invalid JSON for any reason containing a Windows path.**
+  The payload was hand-built, so backslashes went through unescaped and `\U`
+  made it unparseable — a blocked call reached the operator with no reason
+  attached. Now serialized with `json.dumps`.
+
 ### Added
 
 - Opportunistic auto-GC in `cl session start` (throttled to once per 24h

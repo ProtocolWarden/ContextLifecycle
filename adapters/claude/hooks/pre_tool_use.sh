@@ -19,6 +19,20 @@ fi
 REPO_ROOT="${CL_ANCHOR}"
 CONFIG_FILE="${REPO_ROOT}/.context/config.yaml"
 
+# --- Cognition root: session-scoped, not anchor-scoped ---
+# config.yaml documents capsule/checkpoint/handoff paths as relative to
+# .context/sessions/<CL_SESSION_ID>/. Resolving them against the anchor root
+# instead pointed every guard at a directory that does not exist, so the
+# capsule, lease, and forbidden-path checks all silently found nothing.
+if [[ -n "${CL_SESSION_ID:-}" ]]; then
+  COGNITION_ROOT="${REPO_ROOT}/.context/sessions/${CL_SESSION_ID}"
+else
+  # No session id: fall back to the anchor's .context/ so a mis-set env warns
+  # loudly rather than blocking every tool call.
+  COGNITION_ROOT="${REPO_ROOT}/.context"
+  echo "ContextGuard warning: CL_SESSION_ID is not set — cognition paths fall back to ${COGNITION_ROOT}. Run: cl session start <manifest>." >&2
+fi
+
 # --- Session marker (created on first tool call; stop.sh uses it to detect fresh checkpoints) ---
 _SESSION_HASH="$(echo "$REPO_ROOT" | cksum | cut -d' ' -f1)"
 SESSION_MARKER="/tmp/clp_session_${_SESSION_HASH}"
@@ -38,9 +52,9 @@ fi
 # --- Load config (with defaults) ---
 REQUIRE_CAPSULE=false
 ENFORCE_LEASE=true
-CAPSULE_PATH=".context/active/"
-CHECKPOINT_PATH=".context/checkpoints/"
-HANDOFF_PATH=".context/handoffs/"
+CAPSULE_PATH="active/"
+CHECKPOINT_PATH="checkpoints/"
+HANDOFF_PATH="handoffs/"
 
 if [[ -f "${CONFIG_FILE}" ]] && command -v python3 &>/dev/null; then
   REQUIRE_CAPSULE=$(python3 -c "
@@ -70,25 +84,32 @@ try:
     import yaml
     with open('${CONFIG_FILE}') as f:
         c = yaml.safe_load(f)
-    print(c.get('guard', {}).get('capsule_path', '.context/active/'))
+    print(c.get('guard', {}).get('capsule_path', 'active/'))
 except Exception:
-    print('.context/active/')
-" 2>/dev/null || echo ".context/active/")
+    print('active/')
+" 2>/dev/null || echo "active/")
 
   HANDOFF_PATH=$(python3 -c "
 try:
     import yaml
     with open('${CONFIG_FILE}') as f:
         c = yaml.safe_load(f)
-    print(c.get('guard', {}).get('handoff_path', '.context/handoffs/'))
+    print(c.get('guard', {}).get('handoff_path', 'handoffs/'))
 except Exception:
-    print('.context/handoffs/')
-" 2>/dev/null || echo ".context/handoffs/")
+    print('handoffs/')
+" 2>/dev/null || echo "handoffs/")
 fi
+
+# Tolerate legacy config values that still carry the `.context/` prefix: the
+# base is now COGNITION_ROOT, which already includes it. Without this, a config
+# pinned to the old default resolves to `<anchor>/.context/.context/active/`.
+CAPSULE_PATH="${CAPSULE_PATH#.context/}"
+CHECKPOINT_PATH="${CHECKPOINT_PATH#.context/}"
+HANDOFF_PATH="${HANDOFF_PATH#.context/}"
 
 # --- Helper: find active capsule ---
 find_active_capsule() {
-  local capsule_dir="${REPO_ROOT}/${CAPSULE_PATH}"
+  local capsule_dir="${COGNITION_ROOT}/${CAPSULE_PATH}"
   if [[ -d "$capsule_dir" ]]; then
     find "$capsule_dir" -name "*.yaml" -not -name ".gitkeep" | head -1
   fi
@@ -112,8 +133,19 @@ except Exception:
 
 # --- Helper: block with reason ---
 block() {
-  local reason="$1"
-  echo "{\"decision\": \"block\", \"reason\": \"ContextGuard: ${reason}\"}"
+  # The reason routinely contains a filesystem path. On Windows those carry
+  # backslashes, which are invalid unescaped inside a JSON string — hand-built
+  # JSON produced an unparseable payload and the operator saw no reason at all.
+  local reason="ContextGuard: $1"
+  if command -v python3 &>/dev/null; then
+    CG_REASON="$reason" python3 -c "
+import json, os
+print(json.dumps({'decision': 'block', 'reason': os.environ['CG_REASON']}))
+"
+  else
+    reason="${reason//\\/\\\\}"
+    echo "{\"decision\": \"block\", \"reason\": \"${reason//\"/\\\"}\"}"
+  fi
   exit 2
 }
 
@@ -148,7 +180,7 @@ fi
 
 # --- Check: lease expiry ---
 if [[ "$ENFORCE_LEASE" == "true" ]]; then
-  HANDOFF_DIR="${REPO_ROOT}/${HANDOFF_PATH}"
+  HANDOFF_DIR="${COGNITION_ROOT}/${HANDOFF_PATH}"
   if [[ -d "$HANDOFF_DIR" ]]; then
     ACTIVE_HANDOFF="$(find "$HANDOFF_DIR" -name "*.yaml" -not -name ".gitkeep" | head -1)"
     if [[ -n "$ACTIVE_HANDOFF" ]]; then
@@ -173,7 +205,7 @@ if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
   fi
 
   if [[ -n "$TARGET_PATH" ]]; then
-    HANDOFF_DIR="${REPO_ROOT}/${HANDOFF_PATH}"
+    HANDOFF_DIR="${COGNITION_ROOT}/${HANDOFF_PATH}"
     if [[ -d "$HANDOFF_DIR" ]]; then
       ACTIVE_HANDOFF="$(find "$HANDOFF_DIR" -name "*.yaml" -not -name ".gitkeep" | head -1)"
       if [[ -n "$ACTIVE_HANDOFF" ]]; then
@@ -241,7 +273,7 @@ fi
 
 # --- Check: pre_spawn — subagent budget ---
 if [[ "$TOOL_NAME" == "Agent" ]]; then
-  HANDOFF_DIR="${REPO_ROOT}/${HANDOFF_PATH}"
+  HANDOFF_DIR="${COGNITION_ROOT}/${HANDOFF_PATH}"
   if [[ -d "$HANDOFF_DIR" ]]; then
     ACTIVE_HANDOFF="$(find "$HANDOFF_DIR" -name "*.yaml" -not -name ".gitkeep" | head -1)"
     if [[ -n "$ACTIVE_HANDOFF" ]]; then
@@ -262,7 +294,7 @@ except Exception:
   fi
 
   # Check context_risk.high_parallelism from latest checkpoint
-  CHECKPOINT_DIR="${REPO_ROOT}/${CHECKPOINT_PATH}"
+  CHECKPOINT_DIR="${COGNITION_ROOT}/${CHECKPOINT_PATH}"
   if [[ -d "$CHECKPOINT_DIR" ]]; then
     LATEST_CHECKPOINT="$(find "$CHECKPOINT_DIR" -name "*.yaml" -not -name ".gitkeep" | sort | tail -1)"
     if [[ -n "$LATEST_CHECKPOINT" ]]; then
@@ -300,7 +332,7 @@ except Exception:
 fi
 
 # --- context_risk flags from latest checkpoint ---
-CHECKPOINT_DIR="${REPO_ROOT}/${CHECKPOINT_PATH}"
+CHECKPOINT_DIR="${COGNITION_ROOT}/${CHECKPOINT_PATH}"
 if [[ -d "$CHECKPOINT_DIR" ]]; then
   LATEST_CHECKPOINT="$(find "$CHECKPOINT_DIR" -name "*.yaml" -not -name ".gitkeep" | sort | tail -1)"
   if [[ -n "$LATEST_CHECKPOINT" ]]; then
