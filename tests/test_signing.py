@@ -21,9 +21,9 @@ from cryptography.hazmat.primitives.serialization import (
 from typer.testing import CliRunner
 
 from context_lifecycle.cli import loop as loop_cli
+from context_lifecycle.cli.loop import sign_config_cmd, verify_config_cmd
 from context_lifecycle.pseudo_operator import signing
 from context_lifecycle.pseudo_operator.config import load_verified_config
-from context_lifecycle.cli.loop import sign_config_cmd, verify_config_cmd
 from context_lifecycle.pseudo_operator.signing import (
     VerifyResult,
     canonical_bytes,

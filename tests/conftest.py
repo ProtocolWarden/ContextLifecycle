@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -106,7 +106,7 @@ def valid_handoff_data() -> dict:
         },
         "lease": {
             "max_subagents": 2,
-            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1))
+            "expires_at": (datetime.now(UTC) + timedelta(hours=1))
             .strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     }

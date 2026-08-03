@@ -25,17 +25,17 @@ All three hard-error with ``AnchorMissing`` / ``SessionNotStarted`` when
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from context_lifecycle.errors import BoundaryViolation
 from context_lifecycle.io.yaml_io import dump_yaml, load_yaml_safe
 from context_lifecycle.session.anchor import require_anchor_env
 from context_lifecycle.session.ids import require_session_env
 from context_lifecycle.session.paths import SessionPaths
-
 
 # ---------------------------------------------------------------------------
 # Public dataclass
@@ -223,7 +223,7 @@ def hydrate(lineage_id: str, work_item: dict[str, Any]) -> HydratedContext:
             "lineage_id": lineage_id,
             "session_id": paths.session_id,
             "status": "fresh",
-            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "created_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "work_item": dict(work_item) if isinstance(work_item, dict) else work_item,
         }
         fresh = True
@@ -256,7 +256,7 @@ def capture(lineage_id: str, result: dict[str, Any]) -> None:
     if kind == "capsule":
         target = _active_file(paths, lineage_id)
     elif kind == "checkpoint":
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+        ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
         ckpt_id = result.get("checkpoint_id") or ts
         target = paths.checkpoints / f"{ckpt_id}.yaml"
     else:  # handoff
@@ -272,7 +272,7 @@ def capture(lineage_id: str, result: dict[str, Any]) -> None:
     payload.setdefault("session_id", paths.session_id)
     payload.setdefault(
         "captured_at",
-        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
     dump_yaml(target, payload)
 

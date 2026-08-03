@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -61,12 +61,12 @@ class WorkerHandoff(BaseModel):
         ts = self.effective_expires_at
         if not ts:
             return False
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         try:
             # Accept "Z" suffix and offset-aware ISO formats
             parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         except ValueError:
             return False
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         return now > parsed

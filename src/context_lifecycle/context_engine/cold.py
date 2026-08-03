@@ -298,8 +298,7 @@ def surface_cold(target: str, knowledge_dir: Path, max_items: int) -> list[str]:
     (spec §1).
     """
     try:
-        if target.startswith("./"):
-            target = target[2:]
+        target = target.removeprefix("./")
         matched: list[tuple[str, str]] = []  # (topic, line)
         for item in load_index(knowledge_dir):
             if item.tier != "cold":

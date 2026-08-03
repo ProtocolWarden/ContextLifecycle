@@ -21,6 +21,7 @@ from context_lifecycle.reconcile.index import (
     render_index,
 )
 from context_lifecycle.reconcile.lock import PruneLockHeld
+from context_lifecycle.reconcile.privacy import PrivateArchiveUnavailable
 from context_lifecycle.reconcile.prune import (
     DEFAULT_RECENT_N,
     PruneRefused,
@@ -28,7 +29,6 @@ from context_lifecycle.reconcile.prune import (
     build_plan,
     format_plan,
 )
-from context_lifecycle.reconcile.privacy import PrivateArchiveUnavailable
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 

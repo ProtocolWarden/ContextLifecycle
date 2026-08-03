@@ -3,19 +3,19 @@
 """Pydantic v2 models mirroring the YAML schemas in .context/schemas/."""
 
 from context_lifecycle.models.capsule import InvestigationCapsule
-from context_lifecycle.models.checkpoint import LoopCheckpoint, ContextRisk, Orchestrator
-from context_lifecycle.models.handoff import WorkerHandoff, WorkerScope, Lease
-from context_lifecycle.models.config import GuardConfig, LoopConfig, CLConfig
+from context_lifecycle.models.checkpoint import ContextRisk, LoopCheckpoint, Orchestrator
+from context_lifecycle.models.config import CLConfig, GuardConfig, LoopConfig
+from context_lifecycle.models.handoff import Lease, WorkerHandoff, WorkerScope
 
 __all__ = [
-    "InvestigationCapsule",
-    "LoopCheckpoint",
+    "CLConfig",
     "ContextRisk",
+    "GuardConfig",
+    "InvestigationCapsule",
+    "Lease",
+    "LoopCheckpoint",
+    "LoopConfig",
     "Orchestrator",
     "WorkerHandoff",
     "WorkerScope",
-    "Lease",
-    "GuardConfig",
-    "LoopConfig",
-    "CLConfig",
 ]

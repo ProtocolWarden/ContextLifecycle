@@ -24,8 +24,8 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -207,8 +207,7 @@ def select_docs_split(
     """
     # Strip only a leading literal "./" prefix — NOT a character set, which
     # would mangle dot-prefixed paths like ".github/...".
-    if target.startswith("./"):
-        target = target[2:]
+    target = target.removeprefix("./")
     best: dict[str, int] = {}
     order: list[str] = []
     for route in routes:

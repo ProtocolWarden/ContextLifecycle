@@ -26,17 +26,17 @@ import signal
 import socket
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import BackendSpec, PseudoOperatorConfig
-from .sessions import SessionMixin, _command_available, _resolve_command  # noqa: F401
 from .limits import (
     GLOBAL_CLAUDE_LIMIT_RE,
     RATE_LIMIT_BUFFER,
     classify_limit_kind,
     parse_rate_limit_reset,
 )
+from .sessions import SessionMixin, _command_available, _resolve_command  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class PseudoOperatorEngine(SessionMixin):
 
     @staticmethod
     def _ts() -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # ── locking (atomic + hostname-aware, Track A7 semantics) ─────────────
     def _lock_payload(self) -> str:
@@ -148,11 +148,11 @@ class PseudoOperatorEngine(SessionMixin):
         spec = self._backends[name]
         until = cooldowns.get(name)
         return _command_available(self._cli_for(spec)) and (
-            until is None or datetime.now(timezone.utc) >= until
+            until is None or datetime.now(UTC) >= until
         )
 
     def _clear_expired_cooldowns(self, cooldowns: dict[str, datetime | None]) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for backend, until in list(cooldowns.items()):
             if until is not None and now >= until:
                 cooldowns[backend] = None
@@ -179,7 +179,7 @@ class PseudoOperatorEngine(SessionMixin):
         return None
 
     def _next_backend_reset(self, cooldowns: dict[str, datetime | None]) -> datetime | None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future = [dt for dt in cooldowns.values() if dt is not None and dt > now]
         return min(future) if future else None
 
@@ -189,7 +189,7 @@ class PseudoOperatorEngine(SessionMixin):
             return False
         delay = max(
             60,
-            int((reset_dt - datetime.now(timezone.utc)).total_seconds()) + RATE_LIMIT_BUFFER,
+            int((reset_dt - datetime.now(UTC)).total_seconds()) + RATE_LIMIT_BUFFER,
         )
         self._log(
             f"All available backends are cooling down until "

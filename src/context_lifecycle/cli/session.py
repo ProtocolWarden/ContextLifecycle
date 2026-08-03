@@ -16,7 +16,6 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -28,11 +27,15 @@ from context_lifecycle.errors import (
 )
 from context_lifecycle.session.anchor import (
     ENV_VAR as ANCHOR_ENV,
+)
+from context_lifecycle.session.anchor import (
     resolve_anchor_arg,
     validate_anchor,
 )
 from context_lifecycle.session.ids import (
     ENV_VAR as SESSION_ENV,
+)
+from context_lifecycle.session.ids import (
     generate_session_id,
     is_valid_session_id,
 )
@@ -50,7 +53,7 @@ app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 @app.command("start")
 def start(
-    manifest: Optional[str] = typer.Argument(
+    manifest: str | None = typer.Argument(
         None,
         help="Manifest name or absolute path. If omitted, P2 will infer via RepoGraph.",
     ),
@@ -182,7 +185,7 @@ def end(
 
 @app.command("prune")
 def prune(
-    manifest: Optional[str] = typer.Argument(
+    manifest: str | None = typer.Argument(
         None,
         help=f"Anchor manifest name or path (default: ${ANCHOR_ENV}).",
     ),

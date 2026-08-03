@@ -6,8 +6,9 @@ Validates all CLP example/template YAML files against required field contracts.
 Exit 0 = all pass. Exit 1 = failures.
 """
 import sys
-import yaml
 from pathlib import Path
+
+import yaml
 
 REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
 

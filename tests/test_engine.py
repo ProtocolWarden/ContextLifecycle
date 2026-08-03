@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 import socket
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -17,8 +17,8 @@ from context_lifecycle.pseudo_operator import (
     PseudoOperatorEngine,
     load_pseudo_operator_config,
 )
-from context_lifecycle.pseudo_operator.config import PseudoOperatorConfig
 from context_lifecycle.pseudo_operator import engine as engine_mod
+from context_lifecycle.pseudo_operator.config import PseudoOperatorConfig
 
 assert engine_mod is not None  # T6: module import reference
 
@@ -261,7 +261,7 @@ def test_global_claude_limit_cools_all_claude_backends(tmp_path: Path):
 
 
 def test_seed_cooldowns_hook(tmp_path: Path):
-    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    future = (datetime.now(UTC) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     script = tmp_path / "seed.py"
     script.write_text(f"import json; print(json.dumps({{'claude': '{future}', 'codex': None}}))")
     eng = PseudoOperatorEngine(
@@ -274,7 +274,7 @@ def test_seed_cooldowns_hook(tmp_path: Path):
 
 
 def test_budget_guard_hook_extends_cooldown(tmp_path: Path):
-    future = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    future = (datetime.now(UTC) + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
     script = tmp_path / "guard.py"
     script.write_text(
         f"import json; print(json.dumps({{'claude': '{future}', 'opus': '{future}', 'codex': None}}))"
@@ -288,11 +288,11 @@ def test_budget_guard_hook_extends_cooldown(tmp_path: Path):
 
 def test_budget_guard_never_shortens_a_real_cooldown(tmp_path: Path):
     """A cheap budget estimate must not mask a longer real limit reset."""
-    near = (datetime.now(timezone.utc) + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    near = (datetime.now(UTC) + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
     script = tmp_path / "guard.py"
     script.write_text(f"import json; print(json.dumps({{'claude': '{near}'}}))")
     eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"budget_guard": ["python3", str(script)]}))
-    real_reset = datetime.now(timezone.utc) + timedelta(hours=3)
+    real_reset = datetime.now(UTC) + timedelta(hours=3)
     cooldowns = {"claude": real_reset, "opus": None, "codex": None}
     eng._budget_guard(cooldowns)
     assert cooldowns["claude"] == real_reset
@@ -302,7 +302,7 @@ def test_budget_guard_null_output_leaves_cooldowns_alone(tmp_path: Path):
     script = tmp_path / "guard.py"
     script.write_text("import json; print(json.dumps({'claude': None, 'opus': None}))")
     eng = PseudoOperatorEngine(_cfg(tmp_path, hooks={"budget_guard": ["python3", str(script)]}))
-    real_reset = datetime.now(timezone.utc) + timedelta(hours=1)
+    real_reset = datetime.now(UTC) + timedelta(hours=1)
     cooldowns = {"claude": real_reset, "opus": None, "codex": None}
     eng._budget_guard(cooldowns)
     assert cooldowns["claude"] == real_reset and cooldowns["opus"] is None

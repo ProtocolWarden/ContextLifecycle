@@ -31,14 +31,14 @@ class DecisionResult:
     reason: str = ""
     warnings: list[Warn] = field(default_factory=list)
 
-    def block(self, reason: str) -> "DecisionResult":
+    def block(self, reason: str) -> DecisionResult:
         # First block wins (matches bash's `exit 2` short-circuit).
         if self.decision is Decision.ALLOW:
             self.decision = Decision.BLOCK
             self.reason = reason
         return self
 
-    def warn(self, reason: str) -> "DecisionResult":
+    def warn(self, reason: str) -> DecisionResult:
         self.warnings.append(Warn(reason))
         return self
 

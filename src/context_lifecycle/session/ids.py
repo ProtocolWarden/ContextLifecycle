@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from context_lifecycle.errors import SessionNotStarted
 
@@ -20,7 +20,7 @@ ENV_VAR = "CL_SESSION_ID"
 
 def generate_session_id(now: datetime | None = None) -> str:
     """Generate a fresh session id of the locked format."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     date = now.strftime("%Y-%m-%d")
     # 4 hex chars from secrets — collision-safe enough for per-day session ids.
     rand = secrets.token_hex(2)

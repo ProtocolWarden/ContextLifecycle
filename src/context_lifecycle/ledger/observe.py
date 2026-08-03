@@ -38,7 +38,7 @@ _SOURCED_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\* — (\S+):.*?\[check: ",
 class RecurringSignal:
     """A signal recurring across candidates within the window. Value object."""
 
-    __slots__ = ("signal", "count", "latest_date", "contexts")
+    __slots__ = ("contexts", "count", "latest_date", "signal")
 
     def __init__(
         self, signal: str, count: int, latest_date: str, contexts: list[str]
