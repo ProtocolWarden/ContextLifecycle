@@ -340,20 +340,57 @@ def _pointer_section(archive_file: Path, *, private_root: Path | None = None) ->
 _ABSOLUTE_REF_RE = re.compile(r"`(?:[A-Za-z]:[\\/]|/)")
 
 
+def _pointer_line(pointer: Section) -> str:
+    """The `_Archived … →  `<ref>`_` line on its own, without the heading."""
+    for line in pointer.body.splitlines(keepends=True):
+        if _POINTER_PREFIX in line:
+            return line
+    return ""
+
+
+def _merge_pointer_into(sec: Section, pointer: Section) -> Section:
+    """Insert the pointer line into an existing section, keeping its prose.
+
+    Used when a section already carries the pointer heading but no pointer
+    line. Replacing it wholesale would discard whatever the operator wrote
+    there, and this module elsewhere goes out of its way to preserve
+    annotations — so the pointer is inserted under the heading and the rest of
+    the body is kept verbatim.
+    """
+    lines = sec.body.splitlines(keepends=True)
+    heading_line = lines[0] if lines else f"## {sec.heading}\n"
+    remainder = "".join(lines[1:]).strip("\n")
+    body = f"{heading_line}\n{_pointer_line(pointer)}"
+    if remainder:
+        body += f"\n{remainder}\n"
+    return Section(heading=sec.heading, body=body.rstrip("\n") + "\n\n")
+
+
 def _ensure_pointer(sections: list[Section], pointer: Section) -> list[Section]:
-    """Append the pointer section, or upgrade a legacy absolute one in place.
+    """Append the pointer section, or repair an existing one in place.
 
     Idempotent for any pointer already in the portable form — including one an
     operator has annotated, which is left untouched. A pointer carrying an
     ABSOLUTE path is replaced: older runs embedded the operator's home directory
     (and often their name) into tracked files, and leaving that in place would
     keep leaking it every time the file is read.
+
+    A section under the pointer heading that carries no pointer line at all —
+    hand-written, or an older run whose wording drifted from ``_POINTER_PREFIX``
+    — is repaired rather than ignored. Matching on heading *and* prefix meant
+    such a section was not recognised, so a second ``## Archived`` was appended
+    beside it and the file ended up with two. That very nearly shipped: a test
+    fixture written with an ASCII ``->`` instead of the prefix's ``→`` produced
+    exactly this and passed the unit suite.
     """
     for i, sec in enumerate(sections):
-        if sec.heading == pointer.heading and _POINTER_PREFIX in sec.body:
-            if _ABSOLUTE_REF_RE.search(sec.body):
-                return sections[:i] + [pointer] + sections[i + 1 :]
-            return sections  # already portable — leave it, annotations and all
+        if sec.heading != pointer.heading:
+            continue
+        if _POINTER_PREFIX not in sec.body:
+            return sections[:i] + [_merge_pointer_into(sec, pointer)] + sections[i + 1 :]
+        if _ABSOLUTE_REF_RE.search(sec.body):
+            return sections[:i] + [pointer] + sections[i + 1 :]
+        return sections  # already portable — leave it, annotations and all
     return sections + [pointer]
 
 
