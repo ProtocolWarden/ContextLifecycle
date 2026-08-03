@@ -1,4 +1,27 @@
 # Log
+## 2026-08-03 — fix(reconcile): give the prune lock a Windows backend
+
+`reconcile_lock` raised `RuntimeError` without `fcntl`, so `prune --apply` was
+unrunnable on Windows — which is why consumer logs got hand-pruned instead.
+
+`msvcrt.locking(LK_NBLCK)` is the direct analogue: non-blocking, exclusive,
+released on process death, conflicts with a second handle in the same process.
+One difference shapes the layout — `flock` is advisory and whole-file, but a
+`msvcrt` range is mandatory, so a reader touching a locked byte gets
+PermissionError. The lock claims a sentinel byte at offset 1024 while the pid
+stays at 0, readable by a contending run that wants to name the holder; the pid
+is a fixed-width field because truncating would cross the locked range. Both
+invariants have a test. Contention now matches on errno (`flock` gives
+EWOULDBLOCK, `msvcrt` EACCES/EDEADLOCK); anything else re-raises as itself, so a
+bad fd is never reported as "someone else holds it".
+
+Not just an unblock: 9 pre-existing Windows failures were all this same
+RuntimeError — four lock tests, five prune tests. Suite 25 failures -> 16, the
+16 a strict subset of the old set (diffed by name). 457 -> 473 = 9 fixed + 7 new.
+
+The cross-process test has the child print its own `os.getpid()`: a venv's
+python.exe can be a shim, so `Popen.pid` is not always the lock holder.
+
 ## 2026-08-03 — fix(cli): stop console encoding from failing a command that succeeded
 
 `cl reconcile check` computed a GREEN verdict, then died printing it:
