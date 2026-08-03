@@ -388,7 +388,7 @@ custodian install is refreshed to @main.
 
 ## Archived
 
-_Archived completed history → `/home/dev/Documents/GitHub/PrivateManifest/archive/console/ContextLifecycle/log-2026-07-06.md`_
+_Archived completed history → `<private-manifest>/archive/console/ContextLifecycle/log-2026-07-06.md`_
 
 ## 2026-07-13 — budget_guard hook (v0.4.3)
 

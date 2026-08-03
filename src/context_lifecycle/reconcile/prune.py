@@ -26,7 +26,11 @@ from pathlib import Path
 from context_lifecycle.reconcile.check import CheckResult, run_check
 from context_lifecycle.reconcile.lock import reconcile_lock
 from context_lifecycle.reconcile.mdsections import Section, join_sections, split_sections
-from context_lifecycle.reconcile.privacy import archive_dir_for, is_private_root
+from context_lifecycle.reconcile.privacy import (
+    archive_dir_for,
+    is_private_root,
+    portable_archive_ref,
+)
 from context_lifecycle.reconcile.scrub import ScrubVocabulary, load_scrub_vocabulary
 from context_lifecycle.reconcile.worksheet import ReconcileItem, Worksheet, load_worksheet
 
@@ -324,17 +328,32 @@ def _scrub_retained(repo_root: Path, vocab: ScrubVocabulary) -> None:
             path.write_text(scrubbed, encoding="utf-8")
 
 
-def _pointer_section(archive_file: Path) -> Section:
+def _pointer_section(archive_file: Path, *, private_root: Path | None = None) -> Section:
     heading = "Archived"
-    body = f"## {heading}\n\n{_POINTER_PREFIX} `{archive_file}`_\n\n"
+    ref = portable_archive_ref(archive_file, private_root=private_root)
+    body = f"## {heading}\n\n{_POINTER_PREFIX} `{ref}`_\n\n"
     return Section(heading=heading, body=body)
 
 
+# A pointer written before the portable form: `C:\Users\...` or `/home/...`
+# inside the backticks. Matched so a prune can heal what an older run embedded.
+_ABSOLUTE_REF_RE = re.compile(r"`(?:[A-Za-z]:[\\/]|/)")
+
+
 def _ensure_pointer(sections: list[Section], pointer: Section) -> list[Section]:
-    """Append the pointer section unless one already references the same archive."""
-    for sec in sections:
+    """Append the pointer section, or upgrade a legacy absolute one in place.
+
+    Idempotent for any pointer already in the portable form — including one an
+    operator has annotated, which is left untouched. A pointer carrying an
+    ABSOLUTE path is replaced: older runs embedded the operator's home directory
+    (and often their name) into tracked files, and leaving that in place would
+    keep leaking it every time the file is read.
+    """
+    for i, sec in enumerate(sections):
         if sec.heading == pointer.heading and _POINTER_PREFIX in sec.body:
-            return sections  # idempotent: already pointed
+            if _ABSOLUTE_REF_RE.search(sec.body):
+                return sections[:i] + [pointer] + sections[i + 1 :]
+            return sections  # already portable — leave it, annotations and all
     return sections + [pointer]
 
 
