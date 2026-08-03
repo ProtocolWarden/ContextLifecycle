@@ -14,10 +14,13 @@ private-manifest repo name is **not** hardcoded in this source (boundary rule I2
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath
 
 _PRIVATE_MANIFEST_ENV = "PRIVATE_MANIFEST_DIR"
 _ARCHIVE_SUBPATH = Path("archive") / "console"
+# Stands in for the private-manifest root wherever a path is written into a
+# tracked file. Not the repo's name — I2 keeps that out of tracked content.
+PRIVATE_ROOT_PLACEHOLDER = "<private-manifest>"
 
 
 class PrivateArchiveUnavailable(RuntimeError):
@@ -110,3 +113,46 @@ def archive_dir_for(repo: str, *, private_root: Path | None = None) -> Path:
     """Return ``<private-root>/archive/console/<repo>/`` (not created here)."""
     root = private_root if private_root is not None else resolve_private_root()
     return root / _ARCHIVE_SUBPATH / repo
+
+
+def portable_archive_ref(archive_file: Path, *, private_root: Path | None = None) -> str:
+    """Render an archive path for embedding in a **tracked** file.
+
+    Never returns an absolute path. The archive lives in the private-manifest
+    repo, so a path relative to the *source* repo is impossible; the private root
+    is rendered as the ``<private-manifest>`` placeholder instead — the same form
+    the spec uses, and the one boundary rule I2 requires (the private repo is
+    resolved at runtime, never written down).
+
+    An absolute path here is a real defect, not cosmetics. It embeds the operator's
+    home directory — and often their name — into whatever file the pointer lands
+    in, which for a public repo is a leak; and it is meaningless on every other
+    host, so the pointer it creates cannot be followed by anyone else or in CI.
+
+    Resolution order: relative to ``private_root`` when known, else sliced at the
+    known ``archive/console`` anchor, else the bare filename. Every branch yields
+    a relative reference.
+
+    Separators are normalised before the anchor search, so a path produced on
+    another platform is still handled. That is not hypothetical tidiness: on
+    POSIX a Windows path is a *single* opaque component, so without it the
+    fallback would hand back the whole absolute path and reinstate exactly the
+    leak this function exists to prevent.
+    """
+    if private_root is not None:
+        try:
+            rel = Path(archive_file).relative_to(private_root)
+            return f"{PRIVATE_ROOT_PLACEHOLDER}/{PurePath(rel).as_posix()}"
+        except ValueError:
+            pass  # archive outside the given root — fall through
+
+    text = str(archive_file).replace("\\", "/")
+    parts = PurePosixPath(text).parts
+    anchor = _ARCHIVE_SUBPATH.parts
+    for i in range(len(parts) - len(anchor) + 1):
+        if parts[i : i + len(anchor)] == anchor:
+            return f"{PRIVATE_ROOT_PLACEHOLDER}/{'/'.join(parts[i:])}"
+
+    # Last resort: the filename alone. Anything that could carry a drive letter
+    # or a leading root is discarded rather than passed through.
+    return f"{PRIVATE_ROOT_PLACEHOLDER}/{PurePosixPath(text).name}"
