@@ -32,7 +32,7 @@ class CLConfig(BaseModel):
     loop: LoopConfig = Field(default_factory=LoopConfig)
 
     @classmethod
-    def from_file(cls, path: Path) -> "CLConfig":
+    def from_file(cls, path: Path) -> CLConfig:
         """Load from YAML file. Returns defaults if file missing or malformed."""
         from context_lifecycle.io.yaml_io import load_yaml_safe
 

@@ -30,7 +30,7 @@ _CANDIDATE_RE = re.compile(
 class StaleCandidate:
     """A candidate older than the threshold. Plain value object."""
 
-    __slots__ = ("date", "signal", "context", "age_days")
+    __slots__ = ("age_days", "context", "date", "signal")
 
     def __init__(self, date: str, signal: str, context: str, age_days: int) -> None:
         self.date = date

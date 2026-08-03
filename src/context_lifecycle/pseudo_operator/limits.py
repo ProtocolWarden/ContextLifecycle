@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -95,7 +95,7 @@ def parse_rate_limit_reset(
             # reset is next year.
             if reset_local <= now_local:
                 reset_local = reset_local.replace(year=reset_local.year + 1)
-            return reset_local.astimezone(timezone.utc), text
+            return reset_local.astimezone(UTC), text
 
         m = _TIMEZONE_RESET_RE.search(text)
         if m:
@@ -113,13 +113,13 @@ def parse_rate_limit_reset(
             )
             if reset_local <= now_local:
                 reset_local += timedelta(days=1)
-            return reset_local.astimezone(timezone.utc), text
+            return reset_local.astimezone(UTC), text
 
         m = _ISO_RESET_RE.search(text)
         if m:
             return (
                 datetime.fromisoformat(m.group(1).replace("Z", "+00:00")).astimezone(
-                    timezone.utc
+                    UTC
                 ),
                 text,
             )
@@ -132,7 +132,7 @@ def parse_rate_limit_reset(
                 seconds=int(m.group("seconds") or 0),
             )
             if delta.total_seconds() > 0:
-                return datetime.now(timezone.utc) + delta, text
+                return datetime.now(UTC) + delta, text
 
         if _LIMIT_SIGNAL_RE.search(text):
             logger.info(

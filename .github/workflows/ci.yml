@@ -30,7 +30,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install ruff
-        run: pip install "ruff>=0.5"
+        # Floor, not a pin: the rule set is fixed by [tool.ruff.lint].select
+        # in pyproject.toml, so a newer ruff cannot switch rules on by itself.
+        # The floor only guarantees every selected code is known.
+        run: pip install "ruff>=0.15"
       - name: Run ruff
         run: ruff check .
 

@@ -60,9 +60,9 @@ import importlib.util
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Callable
 
 # The verbatim sentinel cold.py stores when CI cannot be resolved (matches
 # ci_status.UNKNOWN / attribution.UNKNOWN; duplicated so this module loads

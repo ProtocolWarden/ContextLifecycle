@@ -4,19 +4,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from context_lifecycle.models.handoff import WorkerHandoff
 
 
 def test_handoff_lease_not_expired():
-    future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    future = (datetime.now(UTC) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     h = WorkerHandoff.model_validate({"lease": {"expires_at": future}})
     assert h.is_lease_expired() is False
 
 
 def test_handoff_lease_expired():
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     h = WorkerHandoff.model_validate({"lease": {"expires_at": past}})
     assert h.is_lease_expired() is True
 
@@ -28,7 +28,7 @@ def test_handoff_lease_unset_means_not_expired():
 
 def test_handoff_top_level_expires_at_compat():
     """The bash hook read top-level `expires_at`; allow it via extra='allow'."""
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     h = WorkerHandoff.model_validate({"expires_at": past})
     assert h.is_lease_expired() is True
 

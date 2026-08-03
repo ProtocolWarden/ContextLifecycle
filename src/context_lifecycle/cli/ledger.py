@@ -22,10 +22,13 @@ from pathlib import Path
 import typer
 
 from context_lifecycle.ledger import LedgerUnavailable, capture
-from context_lifecycle.ledger.check import DEFAULT_MAX_AGE_DAYS, check as run_check
+from context_lifecycle.ledger.check import DEFAULT_MAX_AGE_DAYS
+from context_lifecycle.ledger.check import check as run_check
 from context_lifecycle.ledger.observe import (
     DEFAULT_MIN_COUNT,
     DEFAULT_WINDOW_DAYS,
+)
+from context_lifecycle.ledger.observe import (
     observe as run_observe,
 )
 from context_lifecycle.ledger.promote import promote as run_promote

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from context_lifecycle.pseudo_operator import limits
@@ -23,14 +23,14 @@ def test_parse_relative_reset(tmp_path: Path):
     log.write_text("Rate limit reached. Try again in 2h 30m.")
     reset, text = parse_rate_limit_reset(log)
     assert reset is not None
-    assert timedelta(hours=2) < (reset - datetime.now(timezone.utc)) <= timedelta(hours=2, minutes=31)
+    assert timedelta(hours=2) < (reset - datetime.now(UTC)) <= timedelta(hours=2, minutes=31)
 
 
 def test_parse_iso_reset(tmp_path: Path):
     log = tmp_path / "s.log"
     log.write_text("usage limit — resets at 2027-01-02T03:04Z")
     reset, _ = parse_rate_limit_reset(log)
-    assert reset == datetime(2027, 1, 2, 3, 4, tzinfo=timezone.utc)
+    assert reset == datetime(2027, 1, 2, 3, 4, tzinfo=UTC)
 
 
 def test_no_limit_signal_returns_none(tmp_path: Path):

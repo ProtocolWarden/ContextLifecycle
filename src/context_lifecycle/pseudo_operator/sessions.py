@@ -15,8 +15,9 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 
 def _resolve_command(command: str) -> str | None:
     resolved = shutil.which(command)
@@ -94,8 +95,7 @@ def _env_file_vars_literal(env_file: Path) -> dict[str, str]:
     result: dict[str, str] = {}
     for line in env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if line.startswith("export "):
-            line = line[len("export "):]
+        line = line.removeprefix("export ")
         if line and not line.startswith("#") and "=" in line:
             k, _, v = line.partition("=")
             result[k.strip()] = v.strip().strip("'\"")
@@ -141,7 +141,7 @@ class SessionMixin:
         except json.JSONDecodeError:
             self._log("seed_cooldowns hook produced non-JSON output — ignored.")
             return
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for backend, iso in seeded.items():
             if backend not in cooldowns or not iso:
                 continue
@@ -168,7 +168,7 @@ class SessionMixin:
         except json.JSONDecodeError:
             self._log("budget_guard hook produced non-JSON output — ignored.")
             return
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for backend, iso in horizons.items():
             if backend not in cooldowns or not iso:
                 continue
@@ -345,7 +345,7 @@ class SessionMixin:
         ]
 
     def _session_log_path(self, iteration: int, name: str) -> Path:
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         return self.cfg.session_log_dir / f"iter_{iteration:04d}_{ts}_{name}.log"
 
     def run_session(

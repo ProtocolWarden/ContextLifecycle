@@ -21,7 +21,6 @@ from context_lifecycle import (
 )
 from context_lifecycle.session.paths import SessionPaths
 
-
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ not from the consumer repo. Decision tree mirrors the bash reference verbatim.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +28,7 @@ class HookInput:
     tool_input: dict[str, Any]
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "HookInput":
+    def from_payload(cls, payload: dict[str, Any]) -> HookInput:
         return cls(
             tool_name=str(payload.get("tool_name", "")),
             tool_input=payload.get("tool_input") or {},
@@ -89,7 +89,7 @@ def evaluate_pre_tool_use(
 ) -> DecisionResult:
     """Pure decision function. Returns a DecisionResult; CLI maps it to exit codes."""
     result = Allow()
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
 
     # --- require_capsule ---
     if config.guard.require_capsule:

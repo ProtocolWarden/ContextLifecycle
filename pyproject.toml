@@ -34,3 +34,41 @@ context_lifecycle = ["py.typed"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff]
+# Without this block the rule set is whatever the installed ruff defaults to,
+# which is how 201 findings appeared here without a line of code changing:
+# 0.16 widened its defaults, CI installed it unpinned, and rules the project
+# never opted into red-walled a green repo. `select` below is the project's
+# intent, stated once, so a future release cannot decide it for us.
+target-version = "py311"   # matches requires-python; UP rules key off this
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    # Ruff's own documented defaults — this repo has always passed these.
+    "E4", "E7", "E9", "F",
+    # Adopted deliberately: each is mechanical, auto-fixable, and was cleared
+    # in the same commit that selected it.
+    "I",        # import sorting
+    "UP017",    # datetime.timezone.utc -> datetime.UTC
+    "UP035",    # deprecated import
+    "UP037",    # quoted annotation no longer needed
+    "UP045",    # Optional[X] -> X | None
+    "RUF022",   # __all__ sorted
+    "RUF023",   # __slots__ sorted
+    "FURB188",  # manual slice -> removeprefix/removesuffix
+    "PLR0402",  # import x.y as y -> from x import y
+]
+# Deliberately NOT selected, rather than silently absent. Each is a real signal
+# but needs judgement per site, and adopting one means fixing every hit in the
+# same pass — not sprinkling suppressions:
+#   BLE001   blind except  — many here are best-effort discovery, already
+#            annotated with a reason at the site
+#   PLC0415  import not at top — several are deliberate lazy imports
+#   B008     call in argument default — a false positive for Typer, whose
+#            entire CLI surface is built from `typer.Option(...)` defaults
+#   E402     import not at top — tests/conftest.py imports after the venv guard
+#            on purpose, so the guard can fail before anything else loads
+#   S110/S112, S603, S606, DTZ*, PLW1510, TRY004, RUF059, SIM102/103, C408,
+#   RUF012, FURB162, ISC004, PIE810

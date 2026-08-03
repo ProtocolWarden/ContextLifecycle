@@ -2,7 +2,6 @@
 # Copyright (C) 2026 ProtocolWarden
 from __future__ import annotations
 
-
 from context_lifecycle.session.paths import SessionPaths, archived_root
 
 

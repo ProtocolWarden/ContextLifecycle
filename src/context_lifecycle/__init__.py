@@ -3,11 +3,11 @@
 """ContextLifecycle — cognition lifecycle schemas, I/O, policy enforcement."""
 
 from context_lifecycle.errors import (
-    CLError,
-    AnchorMissing,
-    AnchorInvalid,
     AmbiguousAnchor,
+    AnchorInvalid,
+    AnchorMissing,
     BoundaryViolation,
+    CLError,
     ManifestNotFound,
     SessionNotStarted,
 )
@@ -21,16 +21,16 @@ from context_lifecycle.lifecycle import (
 __version__ = "0.3.0"
 
 __all__ = [
-    "__version__",
-    "CLError",
-    "AnchorMissing",
-    "AnchorInvalid",
     "AmbiguousAnchor",
+    "AnchorInvalid",
+    "AnchorMissing",
     "BoundaryViolation",
+    "CLError",
+    "HydratedContext",
     "ManifestNotFound",
     "SessionNotStarted",
-    "HydratedContext",
-    "hydrate",
+    "__version__",
     "capture",
+    "hydrate",
     "peek",
 ]

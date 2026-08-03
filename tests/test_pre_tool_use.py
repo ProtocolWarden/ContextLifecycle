@@ -4,8 +4,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
+from datetime import UTC, datetime, timedelta
 
 from context_lifecycle.hooks.decisions import Decision
 from context_lifecycle.hooks.pre_tool_use import HookInput, evaluate_pre_tool_use
@@ -48,7 +47,7 @@ def test_require_capsule_valid_allows(paths, require_capsule_config, write_yaml_
 # --- lease expiry ---
 
 def test_lease_expired_blocks(paths, default_config, write_yaml_helper):
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     write_yaml_helper(paths.handoffs / "h.yaml", {"lease": {"expires_at": past}})
     r = evaluate_pre_tool_use(paths=paths, config=default_config, hook_input=_hook_input())
     assert r.is_block
@@ -62,7 +61,7 @@ def test_lease_future_allows(paths, default_config, write_yaml_helper, valid_han
 
 
 def test_lease_enforce_disabled(paths, write_yaml_helper):
-    past = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    past = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     write_yaml_helper(paths.handoffs / "h.yaml", {"lease": {"expires_at": past}})
     cfg = CLConfig.model_validate({"guard": {"enforce_lease": False}})
     r = evaluate_pre_tool_use(paths=paths, config=cfg, hook_input=_hook_input())

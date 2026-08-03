@@ -232,6 +232,7 @@ def test_auto_gc_full_lifecycle_move_then_delete(tmp_path: Path):
 
 def test_maybe_auto_gc_throttles_and_logs(tmp_path: Path):
     from datetime import datetime, timedelta
+
     from context_lifecycle.session.retention import maybe_auto_gc
     anchor = _anchor(tmp_path)
     _mk_session(anchor, "s-2026-05-01-aaaa")
@@ -250,6 +251,7 @@ def test_maybe_auto_gc_throttles_and_logs(tmp_path: Path):
 
 def test_manual_prune_skips_gc_state_dir(tmp_path: Path):
     from datetime import datetime
+
     from context_lifecycle.session.retention import maybe_auto_gc
     anchor = _anchor(tmp_path)
     _mk_session(anchor, "s-2026-05-01-aaaa")
@@ -351,7 +353,8 @@ def test_auto_gc_corrupt_stamp_is_fail_safe(tmp_path: Path):
 def test_throttle_is_one_attempt_per_window_even_after_failure(tmp_path: Path, monkeypatch):
     """The stamp advances on attempt, not success — documented semantics."""
     from datetime import datetime, timedelta
-    import context_lifecycle.session.retention as retention
+
+    from context_lifecycle.session import retention
     anchor = _anchor(tmp_path)
     _mk_session(anchor, "s-2026-05-01-aaaa")
     now = datetime(2026, 6, 6, 12, 0, 0)

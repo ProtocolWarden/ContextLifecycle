@@ -53,10 +53,10 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 
 # The verbatim sentinel cold.py stores when CI cannot be resolved (matches
 # ci_status.UNKNOWN; duplicated here so the planner loads standalone).
@@ -287,7 +287,7 @@ def _matches_any_glob(changed: tuple[str, ...], globs: tuple[str, ...], cold) ->
     means precisely what "this item surfaces for that path" means.
     """
     for raw in changed:
-        target = raw[2:] if raw.startswith("./") else raw
+        target = raw.removeprefix("./")
         for glob in globs:
             if cold._glob_to_regex(glob).match(target):
                 return True
@@ -357,7 +357,7 @@ def plan_attribution(
         # sort last and are rejected per-commit below.
         def _commit_key(c: CitedCommit) -> tuple:
             dt = _as_dt(c.author_date)
-            return (dt is None, dt or datetime.max.replace(tzinfo=timezone.utc), c.sha)
+            return (dt is None, dt or datetime.max.replace(tzinfo=UTC), c.sha)
 
         commits.sort(key=_commit_key)
 

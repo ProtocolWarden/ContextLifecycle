@@ -2,7 +2,7 @@
 # Copyright (C) 2026 ProtocolWarden
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -16,7 +16,7 @@ from context_lifecycle.session.ids import (
 
 
 def test_generate_session_id_format():
-    sid = generate_session_id(now=datetime(2026, 5, 22, tzinfo=timezone.utc))
+    sid = generate_session_id(now=datetime(2026, 5, 22, tzinfo=UTC))
     assert sid.startswith("s-2026-05-22-")
     assert is_valid_session_id(sid)
 
