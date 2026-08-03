@@ -12,6 +12,7 @@ from context_lifecycle.cli import ledger as ledger_cmd
 from context_lifecycle.cli import loop as loop_cmd
 from context_lifecycle.cli import reconcile as reconcile_cmd
 from context_lifecycle.cli import session as session_cmd
+from context_lifecycle.cli.console import ensure_printable_console
 
 app = typer.Typer(
     name="cl",
@@ -19,6 +20,19 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+@app.callback()
+def _root() -> None:
+    """Runs before every subcommand.
+
+    Only job is the console-encoding guard: reports carry non-ASCII glyphs that
+    a cp1252 Windows console cannot encode, and the resulting UnicodeEncodeError
+    fires *after* the command's real work is done. Installed here rather than in
+    each command so no future report line can reintroduce the crash. Takes no
+    options, so the CLI surface is unchanged.
+    """
+    ensure_printable_console()
+
 
 app.add_typer(hook_cmd.app, name="hook", help="Claude Code hook adapters (pre_tool_use, stop).")
 app.add_typer(session_cmd.app, name="session", help="Session anchor lifecycle (start, show, end).")

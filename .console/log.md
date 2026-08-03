@@ -1,4 +1,46 @@
 # Log
+## 2026-08-03 — fix(cli): stop console encoding from failing a command that succeeded
+
+`cl reconcile check` computed a GREEN verdict, then died printing it:
+
+    UnicodeEncodeError: 'charmap' codec can't encode character '→'
+
+`check.py:132` renders cross-repo routing with `→`, and a default Windows
+console is cp1252. So any worksheet carrying a cross-repo item — the ordinary
+case, since routing work to its owning repo is the point — reported a passing
+gate as a traceback. The check had already finished; only the formatting failed.
+
+Fixed at the stream, not the glyph. Replacing `→` would have been whack-a-mole:
+the source carries nine distinct non-ASCII codepoints across ~940 occurrences,
+with output-bearing lines in `cli/ledger.py`, `reconcile/check.py` and
+`cli/loop.py`, and any new report line could reintroduce it. `ensure_printable_
+console()` prefers UTF-8 and falls back to `errors="replace"`, so output degrades
+to `?` instead of raising. Installed as a Typer root callback, which runs before
+every subcommand and takes no options, so the CLI surface is unchanged.
+
+Same fix and near-identical wording as Custodian's `cli/colors.py`, which hit
+this in its verbose audit report. Duplicated rather than shared — CL does not
+depend on Custodian, and it is fifteen lines.
+
+The fallback branch is not theoretical: a stream whose buffer is detached
+rejects an encoding change but still accepts an errors change, so the guard
+retries with errors alone rather than giving up on not-raising.
+
+8 tests in `tests/test_console.py`. The first asserts the cp1252 stream really
+does reject the report glyphs — without it the other seven could pass against a
+stream that was never capable of failing. Suite 449 -> 457 passed, the 25
+pre-existing failures and the 2 `cryptography` collection errors unchanged.
+
+Custodian's audit caught two things in the first draft, both fixed: T7 (the file
+was `test_console_encoding.py`, so `cli/console.py` had no parallel test) and T2
+(the skip-path test asserted nothing — it now writes through the stream and
+checks the content, so "skipping is a no-op" is actually verified rather than
+merely not crashing). Audit is back to 0 findings.
+
+Note for anyone reading CI here: `Lint (ruff)` is red on this branch and was
+already red on `main` — 204 findings, identical count before and after this
+change, none in the files touched here.
+
 ## 2026-07-17 — docs: D3 P5 — record stopped_logged_violation as spec-deferred
 
 Resolved P5 (the last D3 phase) as a **decision, not a build**. Investigated
