@@ -137,6 +137,80 @@ class TestEnsurePointer:
         assert PRIVATE_ROOT_PLACEHOLDER in out[1].body
 
 
+class TestPointerHeadingWithoutPrefix:
+    """A section under the pointer heading that carries no pointer line.
+
+    Matching on heading AND prefix meant such a section went unrecognised, so a
+    second ``## Archived`` was appended beside it. Reachable two ways: an
+    operator writes the heading by hand, or an older run's wording drifts from
+    ``_POINTER_PREFIX`` — which is exactly how the ASCII-arrow fixture slipped
+    through the suite that shipped this module.
+    """
+
+    def _pointer(self, tmp_path) -> Section:
+        root = tmp_path / "P"
+        return _pointer_section(
+            root / "archive" / "console" / "Custodian" / "log-2026-08-03.md",
+            private_root=root,
+        )
+
+    def test_does_not_append_a_second_section(self, tmp_path):
+        bare = Section(heading="Archived", body="## Archived\n\nSee the private manifest.\n\n")
+        out = _ensure_pointer([bare], self._pointer(tmp_path))
+        assert len(out) == 1
+        assert out[0].body.count("## Archived") == 1
+
+    def test_inserts_the_pointer_line(self, tmp_path):
+        bare = Section(heading="Archived", body="## Archived\n\nSee the private manifest.\n\n")
+        out = _ensure_pointer([bare], self._pointer(tmp_path))
+        assert _POINTER_PREFIX in out[0].body
+        assert PRIVATE_ROOT_PLACEHOLDER in out[0].body
+
+    def test_keeps_the_existing_prose_in_the_repaired_section(self, tmp_path):
+        """Replacing wholesale would discard whatever the operator wrote.
+
+        Asserts the prose and the pointer land in the SAME single section — the
+        pre-fix code also kept the prose, just in a section sitting beside a
+        second ``## Archived`` heading, so a laxer assertion passes either way.
+        """
+        bare = Section(heading="Archived", body="## Archived\n\nSee the private manifest.\n\n")
+        out = _ensure_pointer([bare], self._pointer(tmp_path))
+        assert len(out) == 1
+        assert "See the private manifest." in out[0].body
+        assert _POINTER_PREFIX in out[0].body
+
+    def test_ascii_arrow_variant_is_repaired_not_duplicated(self, tmp_path):
+        """The near-miss made concrete: prefix wording drifts, heading does not."""
+        drifted = Section(
+            heading="Archived",
+            body="## Archived\n\n_Archived completed history -> `<private-manifest>/x.md`_\n\n",
+        )
+        out = _ensure_pointer([drifted], self._pointer(tmp_path))
+        assert len(out) == 1
+        assert out[0].body.count("## Archived") == 1
+        assert _POINTER_PREFIX in out[0].body
+
+    def test_result_is_idempotent(self, tmp_path):
+        """A second prune over the repaired section must change nothing.
+
+        The length assertion is what makes this bite: the pre-fix code is also
+        stable on re-run, but stable at two sections rather than one.
+        """
+        p = self._pointer(tmp_path)
+        bare = Section(heading="Archived", body="## Archived\n\nSee the private manifest.\n\n")
+        once = _ensure_pointer([bare], p)
+        assert len(once) == 1
+        assert _ensure_pointer(once, p) == once
+
+    def test_other_sections_are_untouched(self, tmp_path):
+        bare = Section(heading="Archived", body="## Archived\n\nnote\n\n")
+        before = Section(heading="Before", body="## Before\n\nb\n\n")
+        after = Section(heading="After", body="## After\n\na\n\n")
+        out = _ensure_pointer([before, bare, after], self._pointer(tmp_path))
+        assert len(out) == 3
+        assert out[0] is before and out[2] is after
+
+
 class TestPruneEndToEnd:
     """Unit tests cover the pointer in isolation; this drives a real prune.
 
