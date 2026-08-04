@@ -59,6 +59,21 @@ class PlannedMove:
 
 
 @dataclass
+class PlannedTrim:
+    """A log section archived for AGE, not because an item claimed it.
+
+    Distinct from ``PlannedMove`` on purpose. A move is released by the DOC GAP
+    gate — a done item with a durable doc. A trim is swept by ``recent_n`` and
+    no gate has looked at it, so the two must not be conflated in the plan the
+    operator approves.
+    """
+
+    source: str          # always "log.md" — backlog trims by section kind, not age
+    heading: str
+    reason: str
+
+
+@dataclass
 class PrunePlan:
     repo: str
     cutoff: str
@@ -68,9 +83,18 @@ class PrunePlan:
     applied: bool = False
     noop: bool = False
     messages: list[str] = field(default_factory=list)
+    # Sections apply() will also archive by age. Recorded so the dry-run
+    # describes what apply actually does; see _retain_recent_log.
+    trims: list[PlannedTrim] = field(default_factory=list)
+    # The recent_n this plan was computed with, so apply() can honour it
+    # instead of silently re-deciding with its own default.
+    recent_n: int = DEFAULT_RECENT_N
 
     @property
     def is_noop(self) -> bool:
+        # Deliberately ignores `trims`: age-sweeping only ever happens as a side
+        # effect of an otherwise-legitimate prune. Counting trims here would
+        # start pruning repos that today are correctly left alone.
         return not self.moves
 
 
@@ -138,7 +162,9 @@ def build_plan(
 
     cutoff = cutoff or date.today().isoformat()
     archive_dir = archive_dir_for(ws.repo, private_root=private_root)
-    plan = PrunePlan(repo=ws.repo, cutoff=cutoff, archive_dir=archive_dir)
+    plan = PrunePlan(
+        repo=ws.repo, cutoff=cutoff, archive_dir=archive_dir, recent_n=recent_n,
+    )
     scrub_records = not _repo_is_private(ws.repo, vocabulary, repo_root)
 
     owned_done = [it for it in ws.items if it.is_done and not it.is_cross_repo(ws.repo)]
@@ -164,6 +190,18 @@ def build_plan(
                 plan.changelog_lines.append(
                     _changelog_entry(item, cutoff, vocabulary, scrub=scrub_records)
                 )
+
+        # Apply also archives unclaimed sections past `recent_n`. Record them
+        # here or the dry-run under-reports: those sections are claimed by no
+        # item and cleared by no gate, so they were invisible until the file
+        # changed underneath the operator.
+        claimed_headings = {sec.heading for i, sec in enumerate(sections) if i in claimed}
+        _, would_archive = _retain_recent_log(sections, claimed_headings, recent_n)
+        plan.trims = [
+            PlannedTrim("log.md", sec.heading, f"beyond --recent {recent_n}")
+            for sec in would_archive
+            if sec.heading not in claimed_headings
+        ]
 
     # --- backlog.md: completed ("Done"/"Done (...)") sections are
     # archive-eligible (active In Progress / Up Next / Recent stay) ------
@@ -206,7 +244,7 @@ def apply_plan(
     repo_root: Path,
     plan: PrunePlan,
     *,
-    recent_n: int = DEFAULT_RECENT_N,
+    recent_n: int | None = None,
     vocab: ScrubVocabulary | None = None,
 ) -> PrunePlan:
     """Execute ``plan``: append to archive, trim source, append CHANGELOG. Idempotent.
@@ -220,10 +258,16 @@ def apply_plan(
     (raises :class:`~context_lifecycle.reconcile.lock.PruneLockHeld` if another
     apply holds it) — see ``reconcile.lock`` for the same-host vs cross-host
     rationale.
+
+    ``recent_n`` defaults to the value the plan was built with. It used to
+    default independently, so applying a plan built with ``--recent 20`` swept
+    to 10 anyway and archived ten sections the preview never mentioned. Pass it
+    explicitly only to override the plan on purpose.
     """
     repo_root = Path(repo_root)
+    effective_n = plan.recent_n if recent_n is None else recent_n
     with reconcile_lock(repo_root):
-        return _apply_plan_locked(repo_root, plan, recent_n=recent_n, vocab=vocab)
+        return _apply_plan_locked(repo_root, plan, recent_n=effective_n, vocab=vocab)
 
 
 def _apply_plan_locked(
@@ -434,6 +478,12 @@ def format_plan(plan: PrunePlan, *, applied: bool) -> str:
         lines.append("  planned moves:")
         for m in plan.moves:
             lines.append(f"    - {m.source}: '{m.heading}' (item {m.matched_item})")
+    if plan.trims:
+        # Listed apart from moves, and named for what they are: no item claimed
+        # these and no gate cleared them — they go purely because they are old.
+        lines.append("  also archived by age (claimed by no item):")
+        for t in plan.trims:
+            lines.append(f"    - {t.source}: '{t.heading}' ({t.reason})")
     if plan.changelog_lines:
         lines.append("  CHANGELOG additions:")
         for c in plan.changelog_lines:

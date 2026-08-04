@@ -13,6 +13,7 @@ from context_lifecycle.reconcile.prune import (
     PruneRefused,
     apply_plan,
     build_plan,
+    format_plan,
 )
 from context_lifecycle.reconcile.scrub import load_scrub_vocabulary
 
@@ -307,3 +308,98 @@ def test_private_manifest_root_prune_keeps_names(tmp_path, monkeypatch):
     assert SCRUB_NAME in changelog
     assert "a private downstream repo" not in retained + changelog
 
+
+
+# --- #54: the dry-run must describe what apply actually does ---------------
+
+
+def _archived_headings(plan) -> set[str]:
+    """H2 headings that actually landed in the archive file."""
+    archive = plan.archive_dir / f"log-{plan.cutoff}.md"
+    if not archive.is_file():
+        return set()
+    return {
+        line[3:].strip()
+        for line in archive.read_text(encoding="utf-8").splitlines()
+        if line.startswith("## ")
+    }
+
+
+class TestPlanReportsAgeTrims:
+    """`_retain_recent_log` archives unclaimed sections past ``recent_n``.
+
+    Those sections are claimed by no item and cleared by no gate — the DOC GAP
+    gate only inspects *done* items, so anything still `partial` is never
+    examined and lands here purely for being old. They were computed during
+    apply and never reached the plan, so the preview under-reported and the
+    operator learned about them when the file changed.
+    """
+
+    def _prep(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+        monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+        return _setup_repo(tmp_path), tmp_path / "Private"
+
+    def test_plan_records_the_age_swept_sections(self, tmp_path, monkeypatch):
+        repo, private = self._prep(tmp_path, monkeypatch)
+        plan = build_plan(repo, recent_n=10, private_root=private)
+        # 12 unclaimed entries, keep 10 → 2 swept by age.
+        assert len(plan.trims) == 2
+        assert all(t.source == "log.md" for t in plan.trims)
+        assert all("recent 10" in t.reason for t in plan.trims)
+
+    def test_dry_run_names_every_section_apply_archives(self, tmp_path, monkeypatch):
+        """The regression: preview and apply must agree, section for section."""
+        repo, private = self._prep(tmp_path, monkeypatch)
+        plan = build_plan(repo, recent_n=10, private_root=private)
+        preview = format_plan(plan, applied=False)
+
+        apply_plan(repo, plan)
+
+        for heading in _archived_headings(plan):
+            assert heading in preview, f"apply archived '{heading}', preview never mentioned it"
+
+    def test_apply_honours_the_plans_recent_n(self, tmp_path, monkeypatch):
+        """Planning with --recent 20 must not sweep to 10 at apply time."""
+        repo, private = self._prep(tmp_path, monkeypatch)
+        plan = build_plan(repo, recent_n=20, private_root=private)
+        assert plan.trims == [], "12 unclaimed entries are all within 20"
+
+        apply_plan(repo, plan)  # no recent_n → must use the plan's 20
+
+        remaining = (repo / ".console" / "log.md").read_text(encoding="utf-8")
+        assert remaining.count("misc entry") == 12, "an unclaimed entry was swept anyway"
+
+    def test_explicit_recent_n_still_overrides_the_plan(self, tmp_path, monkeypatch):
+        """The override stays available — it just is not the silent default."""
+        repo, private = self._prep(tmp_path, monkeypatch)
+        plan = build_plan(repo, recent_n=20, private_root=private)
+
+        apply_plan(repo, plan, recent_n=5)
+
+        remaining = (repo / ".console" / "log.md").read_text(encoding="utf-8")
+        assert remaining.count("misc entry") == 5
+
+    def test_trims_alone_do_not_make_a_noop_plan_act(self, tmp_path, monkeypatch):
+        """Age-sweeping is a side effect of a real prune, never a reason for one.
+
+        A repo with nothing claimable must stay a no-op however old its log is,
+        or upgrading would start pruning repos that are currently left alone.
+        """
+        monkeypatch.delenv("REPOGRAPH_BOUNDARY_ARTIFACT_FILE", raising=False)
+        monkeypatch.delenv("PRIVATE_MANIFEST_DIR", raising=False)
+        repo = tmp_path / "Quiet"
+        console = repo / ".console"
+        console.mkdir(parents=True)
+        (console / "reconcile.yaml").write_text("repo: Quiet\nitems: []\n", encoding="utf-8")
+        log = "# Log\n\n" + "".join(
+            f"## 2026-05-{10 + i:02d} — entry {i}\n\nBody {i}.\n\n" for i in range(12)
+        )
+        (console / "log.md").write_text(log, encoding="utf-8")
+
+        plan = build_plan(repo, recent_n=10, private_root=tmp_path / "Private")
+        assert plan.is_noop
+
+        apply_plan(repo, plan)
+
+        assert (console / "log.md").read_text(encoding="utf-8") == log
