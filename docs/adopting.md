@@ -111,9 +111,9 @@ Start permissive, tighten over time:
 
 ## Schema reference
 
-- [InvestigationCapsule](.context/schemas/investigation_capsule.yaml)
-- [LoopCheckpoint](.context/schemas/loop_checkpoint.yaml)
-- [WorkerHandoff](.context/schemas/worker_handoff.yaml)
+- [InvestigationCapsule](../.context/schemas/investigation_capsule.yaml)
+- [LoopCheckpoint](../.context/schemas/loop_checkpoint.yaml)
+- [WorkerHandoff](../.context/schemas/worker_handoff.yaml)
 
 ---
 

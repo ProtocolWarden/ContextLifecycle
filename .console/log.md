@@ -1,3 +1,16 @@
+## 2026-08-17 — docs(links): schema references were missing a path segment
+
+Found by Custodian's new K5 detector on its first ecosystem run.
+
+`docs/adopting.md`'s "Schema reference" section linked
+`.context/schemas/investigation_capsule.yaml` and its two siblings. From inside
+`docs/` that resolves to `docs/.context/schemas/` — which does not exist. The
+schemas are real and sit at the repo root, so the links needed `../`.
+
+All three verified to resolve. Worth noting these were invisible to the
+markdown-only link sweep run earlier the same day: the targets are `.yaml`, and
+checking only `.md` targets is exactly the blind spot K5 was written to close.
+
 # Log
 ## 2026-08-03 — fix(reconcile): give the prune lock a Windows backend
 
